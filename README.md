@@ -121,7 +121,7 @@ your own source footage for commercial channels, and always add original comment
 ## 🧪 Developers
 
 ```bash
-.venv/bin/pytest   # full suite (221 tests)
+.venv/bin/pytest   # full suite (232 tests)
 ```
 
 ## 📄 License
