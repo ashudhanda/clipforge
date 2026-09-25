@@ -21,6 +21,19 @@ captions, and uploads straight to your channel.
 
 ## 🚀 Install (5 minutes, beginner-friendly)
 
+**Easiest — one command does everything:**
+
+1. Download this repo (Code → Download ZIP) and unzip it.
+2. **Windows:** double-click **`setup.bat`**. **Mac/Linux:** open a terminal in the
+   folder and run **`bash setup.sh`**.
+
+That's it — the script checks Python & FFmpeg (installs them automatically if
+missing), sets up everything, and opens the dashboard at
+**http://127.0.0.1:5057** 🎉 Next time just run the same file again.
+
+<details>
+<summary>Manual install (if the script doesn't work for you)</summary>
+
 You need **Python 3.10+** and **FFmpeg** installed first.
 
 **Windows**
@@ -39,7 +52,7 @@ You need **Python 3.10+** and **FFmpeg** installed first.
 
 **Linux**
 ```bash
-sudo apt install python3 ffmpeg   # Debian/Ubuntu
+sudo apt install python3 python3-venv ffmpeg   # Debian/Ubuntu
 ```
 
 **Then, on any system**, open a terminal *inside the unzipped folder* and run:
@@ -53,6 +66,7 @@ python app.py
 ```
 
 The dashboard opens by itself at **http://127.0.0.1:5057** 🎉
+</details>
 
 > 💡 **One-click installers:** Windows (`ClipForge-Setup.exe`), macOS
 > (`.dmg`) and Linux (tarball) builds are produced automatically by
