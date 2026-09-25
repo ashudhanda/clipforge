@@ -1,0 +1,33 @@
+# ClipForge2 is open source — NEVER commit secrets.
+# OAuth client JSON / tokens live in ~/.clipforge2/ (outside this repo) by design.
+youtube_client.json
+youtube_token.json
+quota.json
+*.token.json
+*client_secret*.json
+
+# Local config / runtime state
+.clipforge2/
+config.json
+*.log
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Local media / previews (large, machine-specific)
+previews/
+clips/
+downloads/
+*.mp4
+*.mkv
+*.webm
+!tests/fixtures/**
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
