@@ -1,0 +1,11 @@
+# ClipForge2 runtime dependencies
+yt-dlp>=2026.8.19
+faster-whisper>=1.0.0
+scikit-learn>=1.3
+opencv-python-headless>=4.8,<5  # face detection for smart crop (headless: no GUI deps; v5 removed CascadeClassifier)
+pytest>=8.0
+flask>=3.0
+google-api-python-client>=2.100.0  # YouTube Data API upload (Phase 6)
+google-auth-oauthlib>=1.2.0  # OAuth desktop-app flow (Phase 6)
+PySocks>=1.7.0  # httplib2 routes ALL proxy connections through PySocks (even plain HTTP CONNECT proxies)
+certifi>=2024.0  # CA bundle for API TLS (lets MITM egress/corporate proxies validate)
