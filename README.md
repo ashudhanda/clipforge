@@ -57,7 +57,7 @@ The dashboard opens by itself at **http://127.0.0.1:5057** 🎉
 > 💡 **One-click installers:** Windows (`ClipForge2-Setup.exe`), macOS
 > (`.dmg`) and Linux (tarball) builds are produced automatically by
 > [build.yml](.github/workflows/build.yml) — grab them from
-> [Releases](https://github.com/ashudhanda/clipforge2/releases).
+> [Releases](https://github.com/ashudhanda/clipforge/releases).
 > They're unsigned for now: on Windows click *More info → Run anyway*,
 > on macOS right-click → *Open* on first launch. FFmpeg is bundled, so no
 > terminal and no Python needed. (To build locally, see `packaging/`.)
