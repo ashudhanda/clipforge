@@ -1,0 +1,610 @@
+{
+ "_meta": {
+  "generator": "tests/fixtures/gen_podcast_10min.py (seed 20260925)",
+  "description": "Synthetic 10-min podcast, 4 topics x 30 sentences",
+  "sentences": 120,
+  "duration_s": 599.51
+ },
+ "transcript": [
+  {
+   "start": 0.0,
+   "end": 4.31,
+   "text": "Every successful founder protects their morning routine fiercely."
+  },
+  {
+   "start": 4.68,
+   "end": 9.21,
+   "text": "The classic founder morning routine starts before sunrise."
+  },
+  {
+   "start": 9.7,
+   "end": 14.76,
+   "text": "Journaling is the founder habit nobody skips in the morning routine."
+  },
+  {
+   "start": 15.38,
+   "end": 20.02,
+   "text": "Cold showers sound miserable, but founders swear by them in the morning routine."
+  },
+  {
+   "start": 20.56,
+   "end": 24.95,
+   "text": "A founder who walks without headphones gets better morning routine ideas."
+  },
+  {
+   "start": 25.63,
+   "end": 29.86,
+   "text": "Protein breakfasts keep every founder sharp through the morning routine."
+  },
+  {
+   "start": 30.19,
+   "end": 35.11,
+   "text": "The morning routine of a founder lists one task, not twenty."
+  },
+  {
+   "start": 35.57,
+   "end": 40.22,
+   "text": "Meditation helps founders, though silence beats any morning routine app."
+  },
+  {
+   "start": 40.79,
+   "end": 44.98,
+   "text": "Founders who train daily rarely burn out, morning routine intact."
+  },
+  {
+   "start": 45.52,
+   "end": 49.43,
+   "text": "Reading twenty pages is the founder morning routine for expertise."
+  },
+  {
+   "start": 50.08,
+   "end": 54.61,
+   "text": "A founder keeps the phone on airplane mode until the morning routine ends."
+  },
+  {
+   "start": 55.21,
+   "end": 59.63,
+   "text": "Weekly reviews make the founder morning routine a learning machine."
+  },
+  {
+   "start": 60.03,
+   "end": 64.22,
+   "text": "Saying no to meetings protects the founder morning routine."
+  },
+  {
+   "start": 64.9,
+   "end": 69.65,
+   "text": "A founder's consistent wake time anchors the whole morning routine."
+  },
+  {
+   "start": 70.14,
+   "end": 74.65,
+   "text": "Founders batch admin work so the morning routine stays sacred."
+  },
+  {
+   "start": 75.34,
+   "end": 79.29,
+   "text": "The two-minute rule keeps the founder morning routine procrastination-free."
+  },
+  {
+   "start": 79.95,
+   "end": 84.81,
+   "text": "Sunlight within thirty minutes resets the founder morning routine clock."
+  },
+  {
+   "start": 85.31,
+   "end": 89.55,
+   "text": "Handwritten goals make the founder morning routine harder to skip."
+  },
+  {
+   "start": 90.13,
+   "end": 94.6,
+   "text": "Accountability partners keep the founder morning routine honest."
+  },
+  {
+   "start": 95.06,
+   "end": 100.01,
+   "text": "Ninety-minute deep work sprints define the founder morning routine."
+  },
+  {
+   "start": 100.5,
+   "end": 105.4,
+   "text": "Inbox triage, not inbox zero, fits the founder morning routine."
+  },
+  {
+   "start": 105.87,
+   "end": 110.22,
+   "text": "Walking meetings beat standing desks in any founder morning routine."
+  },
+  {
+   "start": 110.73,
+   "end": 115.29,
+   "text": "Founders track energy, not hours, inside the morning routine."
+  },
+  {
+   "start": 115.63,
+   "end": 119.59,
+   "text": "A shutdown ritual protects the founder's next morning routine."
+  },
+  {
+   "start": 120.14,
+   "end": 124.67,
+   "text": "Gratitude journaling quietly improves the founder morning routine."
+  },
+  {
+   "start": 125.31,
+   "end": 129.91,
+   "text": "Time blocking beats willpower in every founder morning routine."
+  },
+  {
+   "start": 130.25,
+   "end": 134.3,
+   "text": "The best founders defend morning routine time like investor money."
+  },
+  {
+   "start": 134.76,
+   "end": 139.04,
+   "text": "Batching context switches saves the founder morning routine two hours."
+  },
+  {
+   "start": 139.64,
+   "end": 144.38,
+   "text": "Morning pages dump anxiety out of the founder morning routine."
+  },
+  {
+   "start": 144.89,
+   "end": 149.15,
+   "text": "Reviewing wins builds momentum for the founder morning routine."
+  },
+  {
+   "start": 149.64,
+   "end": 154.69,
+   "text": "Lithium iron phosphate batteries now dominate affordable electric cars."
+  },
+  {
+   "start": 155.36,
+   "end": 159.53,
+   "text": "Electric car battery density has tripled in a decade."
+  },
+  {
+   "start": 160.1,
+   "end": 165.15,
+   "text": "Solid-state batteries promise safer electric cars with faster charging."
+  },
+  {
+   "start": 165.61,
+   "end": 169.9,
+   "text": "The battery cathode decides every electric car's range."
+  },
+  {
+   "start": 170.43,
+   "end": 175.15,
+   "text": "Nickel-rich batteries give electric cars range but age faster."
+  },
+  {
+   "start": 175.67,
+   "end": 180.69,
+   "text": "Modern electric car batteries outlast three hundred thousand kilometers."
+  },
+  {
+   "start": 181.3,
+   "end": 186.32,
+   "text": "Thermal management matters more than raw battery size in electric cars."
+  },
+  {
+   "start": 186.67,
+   "end": 191.02,
+   "text": "Battery swapping refills an electric car faster than chargers."
+  },
+  {
+   "start": 191.61,
+   "end": 196.04,
+   "text": "Second-life electric car batteries store solar power for neighborhoods."
+  },
+  {
+   "start": 196.65,
+   "end": 200.84,
+   "text": "Recycling recovers ninety-five percent of every EV battery."
+  },
+  {
+   "start": 201.42,
+   "end": 206.18,
+   "text": "Sodium-ion batteries could make city electric cars far cheaper."
+  },
+  {
+   "start": 206.58,
+   "end": 211.12,
+   "text": "Electric car batteries taper charging speed after eighty percent."
+  },
+  {
+   "start": 211.79,
+   "end": 216.44,
+   "text": "Preconditioning the battery before arrival saves electric car drivers minutes."
+  },
+  {
+   "start": 216.96,
+   "end": 221.96,
+   "text": "Bidirectional charging turns the electric car battery into a grid asset."
+  },
+  {
+   "start": 222.55,
+   "end": 226.6,
+   "text": "Electric car battery warranties now stretch past eight years."
+  },
+  {
+   "start": 227.21,
+   "end": 231.19,
+   "text": "Cold weather temporarily shrinks every electric car battery's range."
+  },
+  {
+   "start": 231.67,
+   "end": 236.37,
+   "text": "Cell-to-pack designs make electric car batteries structural."
+  },
+  {
+   "start": 236.82,
+   "end": 241.51,
+   "text": "Silicon-rich anodes keep improving electric car batteries yearly."
+  },
+  {
+   "start": 241.91,
+   "end": 246.61,
+   "text": "Fast charging heats the battery and ages electric cars early."
+  },
+  {
+   "start": 247.19,
+   "end": 251.6,
+   "text": "Battery passports will track each electric car battery's life."
+  },
+  {
+   "start": 252.25,
+   "end": 256.43,
+   "text": "Lithium prices crashed after miners oversupplied battery makers."
+  },
+  {
+   "start": 257.09,
+   "end": 261.2,
+   "text": "Electric trucks need megawatt charging for their giant batteries."
+  },
+  {
+   "start": 261.71,
+   "end": 265.72,
+   "text": "Battery swapping suits delivery fleets better than electric car chargers."
+  },
+  {
+   "start": 266.39,
+   "end": 270.34,
+   "text": "Calendar aging wears the battery even when the electric car sits parked."
+  },
+  {
+   "start": 270.89,
+   "end": 275.31,
+   "text": "New electrolytes let batteries run at higher voltages safely."
+  },
+  {
+   "start": 275.78,
+   "end": 279.85,
+   "text": "Range anxiety fades once electric car drivers trust battery networks."
+  },
+  {
+   "start": 280.47,
+   "end": 284.59,
+   "text": "Home charging covers ninety percent of electric car battery needs."
+  },
+  {
+   "start": 284.96,
+   "end": 289.85,
+   "text": "Battery fires are rare but brutal in electric cars."
+  },
+  {
+   "start": 290.52,
+   "end": 294.92,
+   "text": "Modular batteries let electric car owners upgrade capacity later."
+  },
+  {
+   "start": 295.27,
+   "end": 300.07,
+   "text": "The cheapest electric car battery ever just rolled off the line."
+  },
+  {
+   "start": 300.55,
+   "end": 305.28,
+   "text": "A lively starter doubles reliably within six hours of feeding."
+  },
+  {
+   "start": 305.8,
+   "end": 309.82,
+   "text": "Whole wheat flour wakes a sluggish starter faster than white."
+  },
+  {
+   "start": 310.36,
+   "end": 314.85,
+   "text": "Autolyse builds dough strength before the salt goes in."
+  },
+  {
+   "start": 315.27,
+   "end": 319.53,
+   "text": "Stretch and folds replace kneading for wet dough with an active starter."
+  },
+  {
+   "start": 319.86,
+   "end": 324.1,
+   "text": "Bulk fermentation ends when the dough grows by half, starter willing."
+  },
+  {
+   "start": 324.65,
+   "end": 329.59,
+   "text": "The poke test never lies about dough readiness from a ripe starter."
+  },
+  {
+   "start": 330.25,
+   "end": 334.63,
+   "text": "Cold retard deepens dough flavor from a mature starter overnight."
+  },
+  {
+   "start": 335.1,
+   "end": 340.1,
+   "text": "Scoring the dough at an angle creates that proud ear."
+  },
+  {
+   "start": 340.6,
+   "end": 345.17,
+   "text": "Steam in the first twenty minutes decides the dough's crust."
+  },
+  {
+   "start": 345.57,
+   "end": 350.33,
+   "text": "A Dutch oven traps moisture the home dough needs."
+  },
+  {
+   "start": 351.0,
+   "end": 355.89,
+   "text": "Underbaked dough gums up because the starter's starch never set."
+  },
+  {
+   "start": 356.53,
+   "end": 360.93,
+   "text": "Dark crusts taste better; pale dough tastes of raw starter flour."
+  },
+  {
+   "start": 361.28,
+   "end": 365.68,
+   "text": "Feeding ratios control how sour the starter makes the dough."
+  },
+  {
+   "start": 366.32,
+   "end": 370.82,
+   "text": "Discard starter makes the best pancakes from leftover dough."
+  },
+  {
+   "start": 371.41,
+   "end": 375.41,
+   "text": "High-hydration dough needs confident hands and a strong starter."
+  },
+  {
+   "start": 375.99,
+   "end": 380.77,
+   "text": "Shaping builds dough tension for a tall oven spring."
+  },
+  {
+   "start": 381.14,
+   "end": 386.19,
+   "text": "Rice flour keeps the dough from sticking, starter or not."
+  },
+  {
+   "start": 386.77,
+   "end": 390.8,
+   "text": "Slash the dough too deep and it spreads instead of rising."
+  },
+  {
+   "start": 391.24,
+   "end": 395.78,
+   "text": "The dough is done at ninety-eight degrees inside."
+  },
+  {
+   "start": 396.12,
+   "end": 400.63,
+   "text": "Wait two hours before slicing the dough or the crumb gums."
+  },
+  {
+   "start": 401.04,
+   "end": 405.28,
+   "text": "Starters survive weeks of neglect when the dough rests in the fridge."
+  },
+  {
+   "start": 405.91,
+   "end": 410.95,
+   "text": "Reviving a flat starter takes three strong dough feedings."
+  },
+  {
+   "start": 411.38,
+   "end": 415.49,
+   "text": "Chlorinated water stalls the starter and the dough both."
+  },
+  {
+   "start": 416.0,
+   "end": 420.31,
+   "text": "Salt tightens dough gluten but slows a young starter."
+  },
+  {
+   "start": 420.84,
+   "end": 424.87,
+   "text": "Lamination strengthens dough without extra kneading of the starter build."
+  },
+  {
+   "start": 425.49,
+   "end": 429.49,
+   "text": "Coil folds suit very wet dough from a lively starter."
+  },
+  {
+   "start": 429.96,
+   "end": 434.83,
+   "text": "A warm spot speeds a sluggish starter's dough rise."
+  },
+  {
+   "start": 435.39,
+   "end": 440.34,
+   "text": "Weigh the dough ingredients; cups lie about starter flour."
+  },
+  {
+   "start": 440.74,
+   "end": 444.84,
+   "text": "Old starters give dough wonderfully complex acidity."
+  },
+  {
+   "start": 445.27,
+   "end": 449.85,
+   "text": "Your tenth dough will embarrass your first starter loaf."
+  },
+  {
+   "start": 450.24,
+   "end": 454.7,
+   "text": "Deep sleep washes metabolic waste out of the brain."
+  },
+  {
+   "start": 455.38,
+   "end": 459.42,
+   "text": "REM sleep consolidates emotional memories in the brain overnight."
+  },
+  {
+   "start": 459.86,
+   "end": 464.16,
+   "text": "Caffeine's six-hour half-life ruins the brain's sleep pressure."
+  },
+  {
+   "start": 464.5,
+   "end": 468.61,
+   "text": "Blue light delays the brain's melatonin and sleep onset."
+  },
+  {
+   "start": 469.09,
+   "end": 473.35,
+   "text": "Twenty-minute naps refresh the brain without wrecking night sleep."
+  },
+  {
+   "start": 473.96,
+   "end": 478.6,
+   "text": "Sleep deprivation impairs the brain like alcohol does."
+  },
+  {
+   "start": 478.95,
+   "end": 483.03,
+   "text": "Consistent bedtimes protect the brain better than catch-up sleep."
+  },
+  {
+   "start": 483.35,
+   "end": 488.22,
+   "text": "Cool rooms near eighteen degrees deepen brain sleep."
+  },
+  {
+   "start": 488.7,
+   "end": 493.44,
+   "text": "Exercise improves sleep quality, and the brain, unless too late."
+  },
+  {
+   "start": 494.11,
+   "end": 498.42,
+   "text": "Alcohol fragments the brain's sleep architecture badly."
+  },
+  {
+   "start": 498.77,
+   "end": 502.79,
+   "text": "Dreams let the sleeping brain rehearse threats safely."
+  },
+  {
+   "start": 503.28,
+   "end": 507.66,
+   "text": "Sleep spindles shield the sleeping brain from noise."
+  },
+  {
+   "start": 508.32,
+   "end": 513.25,
+   "text": "Teenage brains are wired to delay sleep naturally."
+  },
+  {
+   "start": 513.62,
+   "end": 518.23,
+   "text": "Shift work measurably harms the sleep-deprived brain."
+  },
+  {
+   "start": 518.66,
+   "end": 523.17,
+   "text": "The brain consolidates memory in slow-wave sleep."
+  },
+  {
+   "start": 523.83,
+   "end": 528.65,
+   "text": "Sleep apnea hides behind snoring and starves the brain."
+  },
+  {
+   "start": 529.1,
+   "end": 533.71,
+   "text": "Nasal breathing matters more for the sleeping brain than mouth tape."
+  },
+  {
+   "start": 534.37,
+   "end": 538.32,
+   "text": "White noise won't deepen sleep, but the brain likes the masking."
+  },
+  {
+   "start": 538.99,
+   "end": 543.96,
+   "text": "Sleep trackers guess; only lab gear reads the brain truly."
+  },
+  {
+   "start": 544.59,
+   "end": 548.55,
+   "text": "Insomnia therapy beats pills for the sleepless brain long term."
+  },
+  {
+   "start": 549.02,
+   "end": 553.85,
+   "text": "A wind-down routine tells the brain sleep is coming."
+  },
+  {
+   "start": 554.22,
+   "end": 559.27,
+   "text": "Fiction before bed helps the brain fall asleep faster."
+  },
+  {
+   "start": 559.66,
+   "end": 564.63,
+   "text": "Heavy late meals disrupt the brain's sleep cycles."
+  },
+  {
+   "start": 564.98,
+   "end": 569.96,
+   "text": "Magnesium helps sleep only when the brain lacks it."
+  },
+  {
+   "start": 570.45,
+   "end": 574.89,
+   "text": "Morning sunlight anchors the brain's sleep schedule."
+  },
+  {
+   "start": 575.37,
+   "end": 579.32,
+   "text": "Weekend catch-up can't repay the brain's sleep debt."
+  },
+  {
+   "start": 580.0,
+   "end": 584.88,
+   "text": "Reality checks train the brain for lucid sleep."
+  },
+  {
+   "start": 585.56,
+   "end": 590.25,
+   "text": "Growing brains need far more sleep than adults."
+  },
+  {
+   "start": 590.6,
+   "end": 594.58,
+   "text": "Napping cultures show healthier brains and hearts."
+  },
+  {
+   "start": 594.92,
+   "end": 599.51,
+   "text": "The brain never truly sleeps; it just changes shifts."
+  }
+ ]
+}
