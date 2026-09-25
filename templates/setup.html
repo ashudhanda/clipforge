@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipForge2 — Setup</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2e38; --txt:#eef1f6; --dim:#9aa3b2;
+          --acc:#ffb020; --acc2:#4da3ff; --ok:#37d67a; --bad:#ff5d5d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt);
+         font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:860px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:28px; margin:0 0 6px; }
+  .sub { color:var(--dim); margin:0 0 24px; }
+  .steps { display:flex; gap:8px; margin-bottom:28px; }
+  .dot { flex:1; height:6px; border-radius:3px; background:var(--line); }
+  .dot.on { background:var(--acc); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+          padding:22px; margin-bottom:16px; }
+  .card h2 { margin:0 0 4px; font-size:19px; }
+  .card p.hint { color:var(--dim); margin:0 0 14px; font-size:14px; }
+  .niche-cat { margin:14px 0 4px; font-size:13px; color:var(--acc);
+               text-transform:uppercase; letter-spacing:.06em; }
+  .grid { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1px solid var(--line); background:#12151b; color:var(--txt);
+          border-radius:999px; padding:8px 14px; cursor:pointer; font-size:14px; }
+  .chip.sel { background:var(--acc); border-color:var(--acc); color:#111; font-weight:600; }
+  .styles { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .style-card { border:2px solid var(--line); border-radius:12px; overflow:hidden;
+                cursor:pointer; background:#000; position:relative; }
+  .style-card.sel { border-color:var(--acc); }
+  .style-card video { width:100%; aspect-ratio:9/16; object-fit:cover; display:block; }
+  .style-card .lbl { position:absolute; bottom:0; left:0; right:0; padding:6px;
+                     background:rgba(0,0,0,.72); font-size:13px; text-align:center;
+                     text-transform:capitalize; }
+  .style-card.random .lbl { position:static; background:var(--card); padding:18px 6px; }
+  .style-card.random { display:flex; align-items:center; justify-content:center;
+                       min-height:120px; background:var(--card); }
+  .modes { display:grid; gap:10px; }
+  .mode { border:2px solid var(--line); border-radius:12px; padding:16px; cursor:pointer; }
+  .mode.sel { border-color:var(--acc2); background:#16202e; }
+  .mode b { display:block; margin-bottom:4px; }
+  .mode span { color:var(--dim); font-size:14px; }
+  input[type=text], input[type=time], input[type=number], select {
+    background:#12151b; border:1px solid var(--line); color:var(--txt);
+    border-radius:10px; padding:10px 12px; font-size:15px; width:100%; }
+  .row { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+  .row label { min-width:150px; color:var(--dim); }
+  .nav { display:flex; justify-content:space-between; margin-top:20px; }
+  button { border:0; border-radius:10px; padding:12px 26px; font-size:16px;
+           font-weight:600; cursor:pointer; }
+  .btn-back { background:var(--line); color:var(--txt); }
+  .btn-next { background:var(--acc); color:#111; }
+  .btn-next:disabled { opacity:.45; cursor:default; }
+  .err { background:#3a1414; border:1px solid var(--bad); color:#ffd7d7;
+         border-radius:10px; padding:12px; margin-bottom:14px; display:none; }
+  .review dt { color:var(--dim); font-size:13px; }
+  .review dd { margin:2px 0 12px; font-size:16px; }
+  #customBox { display:none; margin-top:10px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 Welcome to ClipForge2</h1>
+  <p class="sub">One-time setup — about a minute. You can change everything later.</p>
+  <div class="steps" id="dots"></div>
+  <div class="err" id="err"></div>
+
+  <!-- STEP 1: niches -->
+  <div class="card step" data-step="0">
+    <h2>1 · What kind of clips do you want?</h2>
+    <p class="hint">Pick one or more. You can add more later.</p>
+    <input type="text" id="nicheSearch" placeholder="Search niches…" style="margin-bottom:8px">
+    <div id="nicheGrid"></div>
+    <div id="customBox">
+      <input type="text" id="customNiche" placeholder="Type your custom niche, e.g. 'AI movie trailers'">
+    </div>
+  </div>
+
+  <!-- STEP 2: caption style -->
+  <div class="card step hidden" data-step="1">
+    <h2>2 · Pick a caption style</h2>
+    <p class="hint">Watch the previews, tap your favourite — or let every clip roll the dice.</p>
+    <div class="styles" id="styleGrid"></div>
+  </div>
+
+  <!-- STEP 3: mode -->
+  <div class="card step hidden" data-step="2">
+    <h2>3 · How should clips get uploaded?</h2>
+    <p class="hint">You can switch modes anytime.</p>
+    <div class="modes" id="modeGrid"></div>
+  </div>
+
+  <!-- STEP 4: schedule -->
+  <div class="card step hidden" data-step="3">
+    <h2>4 · How many clips per day?</h2>
+    <p class="hint">Pick times that suit your audience.</p>
+    <div class="row"><label>Clips per day</label>
+      <input type="number" id="dailyCount" min="1" max="10" value="2" style="max-width:100px"></div>
+    <div id="timesBox"></div>
+  </div>
+
+  <!-- STEP 5: review -->
+  <div class="card step hidden" data-step="4">
+    <h2>5 · All set — review</h2>
+    <p class="hint">Look it over, then switch on autopilot whenever you're ready.</p>
+    <dl class="review" id="reviewBox"></dl>
+    <div class="row"><label>Quality gate</label></div>
+      <p class="hint" style="margin-top:0">In autopilot, clips scoring below your bar are skipped automatically.</p>
+      <div class="modes" id="gateGrid"></div>
+  </div>
+
+  <div class="nav">
+    <button class="btn-back" id="backBtn">← Back</button>
+    <button class="btn-next" id="nextBtn">Next →</button>
+  </div>
+</div>
+
+<script>
+const state = { step:0, niches:[], styles:[], style:"karaoke", mode:"manual",
+                gate:"medium",
+                customNiche:"", qualityGate:50 };
+const MODES = [
+  ["manual","Manual","Make clips here, preview them, and upload to YouTube yourself. No login needed."],
+  ["semi-auto","Semi-auto","You approve each clip here, then the tool uploads it for you."],
+  ["autopilot","Full autopilot","Finds videos, makes clips, quality-checks and uploads them on its own."],
+];
+const $ = id => document.getElementById(id);
+
+function showErr(m){ const e=$("err"); e.textContent=m; e.style.display="block";
+  setTimeout(()=>e.style.display="none", 5000); }
+
+function renderDots(){
+  $("dots").innerHTML = [0,1,2,3,4].map(i=>
+    `<div class="dot${i<=state.step?" on":""}"></div>`).join("");
+}
+function goStep(n){
+  state.step = Math.max(0, Math.min(4, n));
+  document.querySelectorAll(".step").forEach(el=>
+    el.classList.toggle("hidden", +el.dataset.step !== state.step));
+  $("backBtn").style.visibility = state.step===0 ? "hidden" : "visible";
+  $("nextBtn").textContent = state.step===4 ? "Finish setup ✓" : "Next →";
+  renderDots();
+  if (state.step===3) renderTimes();
+  if (state.step===4) renderReview();
+}
+
+async function init(){
+  const [niches, styles] = await Promise.all([
+    fetch("/api/niches").then(r=>r.json()),
+    fetch("/api/styles").then(r=>r.json()),
+  ]);
+  state.niches = niches; state.styles = styles;
+  renderNiches(""); renderStyles(); renderModes(); renderGates();
+  renderDots();
+  $("nicheSearch").addEventListener("input", e=>renderNiches(e.target.value));
+  $("backBtn").onclick = ()=>goStep(state.step-1);
+  $("nextBtn").onclick = next;
+  $("dailyCount").addEventListener("input", renderTimes);
+}
+
+function renderNiches(q){
+  q = q.toLowerCase();
+  const sel = new Set(state.selNiches||[]);
+  const cats = {};
+  state.niches.forEach(n=>{
+    if (q && !(n.name.toLowerCase().includes(q)||n.category.toLowerCase().includes(q))) return;
+    (cats[n.category] = cats[n.category]||[]).push(n);
+  });
+  $("nicheGrid").innerHTML = Object.entries(cats).map(([cat,ns])=>
+    `<div class="niche-cat">${cat}</div><div class="grid">` +
+    ns.map(n=>`<button class="chip${sel.has(n.id)?" sel":""}" data-id="${n.id}">${n.name}</button>`).join("") +
+    `</div>`).join("");
+  $("nicheGrid").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.id;
+    state.selNiches = state.selNiches||[];
+    const i=state.selNiches.indexOf(id);
+    if(i>=0) state.selNiches.splice(i,1); else state.selNiches.push(id);
+    $("customBox").style.display = state.selNiches.includes("custom")?"block":"none";
+    b.classList.toggle("sel");
+  });
+}
+
+function renderStyles(){
+  $("styleGrid").innerHTML = state.styles.map(s=>
+    s.preview
+    ? `<div class="style-card${state.style===s.id?" sel":""}" data-id="${s.id}">
+         <video src="${s.preview}" muted loop playsinline preload="metadata"></video>
+         <div class="lbl">${s.id}</div></div>`
+    : `<div class="style-card random${state.style==="random"?" sel":""}" data-id="random">
+         <div class="lbl">🎲 Random every clip</div></div>`).join("");
+  const cards = $("styleGrid").querySelectorAll(".style-card");
+  cards.forEach(c=>{
+    c.onclick = ()=>{ state.style=c.dataset.id;
+      cards.forEach(x=>x.classList.toggle("sel",x===c)); };
+    const v=c.querySelector("video");
+    if(v){ c.onmouseenter=()=>v.play().catch(()=>{}); c.onmouseleave=()=>v.pause(); }
+  });
+}
+
+const GATES = [
+  ["low",    "🟢 Low",    "Almost everything goes through — only the worst clips are skipped."],
+  ["medium", "🟡 Medium", "Balanced — recommended for most channels."],
+  ["high",   "🔴 High",   "Only the best clips get through — fewer uploads, top quality."],
+];
+
+function renderGates(){
+  $("gateGrid").innerHTML = GATES.map(([id,t,d])=>
+    `<div class="mode${state.gate===id?" sel":""}" data-id="${id}"><b>${t}</b><span>${d}</span></div>`).join("");
+  $("gateGrid").querySelectorAll(".mode").forEach(m=>m.onclick=()=>{
+    state.gate=m.dataset.id;
+    $("gateGrid").querySelectorAll(".mode").forEach(x=>x.classList.toggle("sel",x===m));
+  });
+}
+
+function renderModes(){
+  $("modeGrid").innerHTML = MODES.map(([id,t,d])=>
+    `<div class="mode${state.mode===id?" sel":""}" data-id="${id}"><b>${t}</b><span>${d}</span></div>`).join("");
+  $("modeGrid").querySelectorAll(".mode").forEach(m=>m.onclick=()=>{
+    state.mode=m.dataset.id;
+    $("modeGrid").querySelectorAll(".mode").forEach(x=>x.classList.toggle("sel",x===m));
+  });
+}
+
+function renderTimes(){
+  const n = Math.max(1, Math.min(10, +$("dailyCount").value||2));
+  const defaults=["09:00","13:00","18:00","21:00"];
+  $("timesBox").innerHTML = Array.from({length:n},(_,i)=>
+    `<div class="row"><label>Clip ${i+1} time</label>
+     <input type="time" class="ttime" value="${defaults[i%4]}" style="max-width:160px"></div>`).join("");
+}
+
+function renderReview(){
+  const names = (state.selNiches||[]).map(id=>{
+    const n=state.niches.find(x=>x.id===id); return n?n.name:id; }).join(", ");
+  $("reviewBox").innerHTML = `
+    <dt>Niches</dt><dd>${names||"—"}${state.selNiches?.includes("custom")?` (“${$("customNiche").value||"—"}”)`:""}</dd>
+    <dt>Caption style</dt><dd style="text-transform:capitalize">${state.style==="random"?"🎲 Random every clip":state.style}</dd>
+    <dt>Upload mode</dt><dd>${MODES.find(m=>m[0]===state.mode)[1]}</dd>
+    <dt>Quality gate</dt><dd>${GATES.find(g=>g[0]===state.gate)[1]}</dd>
+    <dt>Schedule</dt><dd>${$("dailyCount").value} clip(s)/day at ${[...document.querySelectorAll(".ttime")].map(t=>t.value).join(", ")}</dd>`;
+}
+
+async function next(){
+  if (state.step<4){ goStep(state.step+1); return; }
+  const payload = {
+    niches: state.selNiches||[],
+    custom_niche: $("customNiche").value.trim(),
+    caption_style: state.style,
+    mode: state.mode,
+    daily_count: +$("dailyCount").value||2,
+    times: [...document.querySelectorAll(".ttime")].map(t=>t.value),
+    quality_gate: state.gate,
+    autopilot: state.mode==="autopilot",
+  };
+  $("nextBtn").disabled = true;
+  try{
+    const r = await fetch("/api/setup",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||"save failed");
+    location.href = "/";
+  }catch(e){ showErr(e.message); $("nextBtn").disabled=false; }
+}
+
+init();
+</script>
+</body>
+</html>
