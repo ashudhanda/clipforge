@@ -15,8 +15,16 @@ ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 # --- bundled data -----------------------------------------------------------
 datas = [
     (os.path.join(ROOT, "templates"), "templates"),
-    (os.path.join(ROOT, "previews"), "previews"),
 ]
+# previews/ only exists once style-preview videos are generated locally;
+# skip it when absent so the build never breaks on a fresh checkout.
+_previews = os.path.join(ROOT, "previews")
+if os.path.isdir(_previews):
+    datas.append((_previews, "previews"))
+
+# --- app icon (packaging/icon.ico); None until the icon is generated --------
+_ICON = os.path.join(ROOT, "packaging", "icon.ico")
+APP_ICON = _ICON if os.path.isfile(_ICON) else None
 
 # --- bundled binaries (ffmpeg/ffprobe land at the bundle root) --------------
 binaries = []
@@ -70,6 +78,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=console,
+    icon=APP_ICON,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,

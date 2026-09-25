@@ -16,6 +16,7 @@ OutputBaseFilename=ClipForge-Setup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=icon.ico
 ; The exe is unsigned for now — Windows SmartScreen will show "Unknown
 ; publisher". Users click "More info → Run anyway". (Signing needs a paid cert.)
 
