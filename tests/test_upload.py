@@ -224,8 +224,8 @@ def test_upload_non_portrait_rejected(tmp_video, quota, monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_oauth_env_client_config(monkeypatch):
-    monkeypatch.setenv("CF2_YT_CLIENT_ID", "id-123")
-    monkeypatch.setenv("CF2_YT_CLIENT_SECRET", "shh")
+    monkeypatch.setenv("CF_YT_CLIENT_ID", "id-123")
+    monkeypatch.setenv("CF_YT_CLIENT_SECRET", "shh")
     assert oauth.has_client_config()
     cfg = oauth._load_client_config()
     assert cfg["installed"]["client_id"] == "id-123"
@@ -233,8 +233,8 @@ def test_oauth_env_client_config(monkeypatch):
 
 
 def test_oauth_missing_client_raises_plain(monkeypatch, tmp_path):
-    monkeypatch.delenv("CF2_YT_CLIENT_ID", raising=False)
-    monkeypatch.delenv("CF2_YT_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("CF_YT_CLIENT_ID", raising=False)
+    monkeypatch.delenv("CF_YT_CLIENT_SECRET", raising=False)
     monkeypatch.setattr(oauth, "client_file_path",
                         lambda: tmp_path / "nope.json")
     assert not oauth.has_client_config()

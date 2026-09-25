@@ -1,5 +1,5 @@
-# ClipForge2 is open source — NEVER commit secrets.
-# OAuth client JSON / tokens live in ~/.clipforge2/ (outside this repo) by design.
+# ClipForge is open source — NEVER commit secrets.
+# OAuth client JSON / tokens live in ~/.clipforge/ (outside this repo) by design.
 youtube_client.json
 youtube_token.json
 quota.json
@@ -7,7 +7,7 @@ quota.json
 *client_secret*.json
 
 # Local config / runtime state
-.clipforge2/
+.clipforge/
 config.json
 *.log
 
