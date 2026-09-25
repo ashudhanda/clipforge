@@ -41,9 +41,7 @@ jobs:
 
       - name: Fetch FFmpeg (macOS)
         if: matrix.ffmpeg == 'mac'
-        run: |
-          if [ "$(uname -m)" = "arm64" ]; then ./packaging/fetch-ffmpeg.sh macos-arm64
-          else ./packaging/fetch-ffmpeg.sh macos-x86_64; fi
+        run: ./packaging/fetch-ffmpeg.sh macos
 
       - name: Fetch FFmpeg (Linux)
         if: matrix.ffmpeg == 'linux'

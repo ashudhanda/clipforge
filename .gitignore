@@ -31,3 +31,6 @@ downloads/
 .DS_Store
 .idea/
 .vscode/
+
+# build-time FFmpeg binaries (downloaded by fetch-ffmpeg.* in CI)
+packaging/bin/
