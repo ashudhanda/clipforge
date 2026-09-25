@@ -1,4 +1,4 @@
-"""LLM-based moment scoring for ClipForge2.
+"""LLM-based moment scoring for ClipForge.
 
 Logic adapted from the Phase 0 audit of cutawan's highlights pipeline
 (rubric-guided LLM selection, sentence-boundary snapping, ~1 clip/minute) —
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from . import llm as _llm
 from .llm import LLMError, LLMProvider
 
-log = logging.getLogger("clipforge2.moments.scorer")
+log = logging.getLogger("clipforge.moments.scorer")
 
 
 @dataclass
@@ -106,7 +106,7 @@ def group_sentences(transcript: list[dict]) -> list[_Sentence]:
 
 # --- Our own virality rubric (own text, own weights) -------------------------
 # Concept adapted from cutawan (weighted rubric -> 0-100); every word and every
-# weight below is written fresh for ClipForge2.
+# weight below is written fresh for ClipForge.
 
 
 def build_rubric() -> str:

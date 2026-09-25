@@ -1,4 +1,4 @@
-"""Moment detection for ClipForge2: transcript -> scored clip candidates.
+"""Moment detection for ClipForge: transcript -> scored clip candidates.
 
 Two modes:
 - ``mode="llm"`` (default): rubric-guided LLM scoring (needs GEMINI_API_KEY
@@ -18,7 +18,7 @@ from .llm import LLMError, get_provider
 from .scorer import Clip, find_moments
 from .segmenter import segment_offline
 
-log = logging.getLogger("clipforge2.moments")
+log = logging.getLogger("clipforge.moments")
 
 __all__ = [
     "Clip",

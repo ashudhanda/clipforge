@@ -16,8 +16,8 @@ from core.edit import AVAILABLE_STYLES
 
 @pytest.fixture()
 def cfg_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("CF2_CONFIG_DIR", str(tmp_path / ".clipforge2"))
-    return tmp_path / ".clipforge2"
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
+    return tmp_path / ".clipforge"
 
 
 def valid_payload():
@@ -127,7 +127,7 @@ def client(cfg_home):
 def test_index_shows_setup_before_config(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert b"Welcome to ClipForge2" in r.data
+    assert b"Welcome to ClipForge" in r.data
 
 
 def test_setup_flow_then_dashboard(client):
@@ -250,7 +250,7 @@ def test_youtube_client_upload_saves_file(client, cfg_home):
     assert json.loads(p.read_text())["installed"]["client_id"].startswith("abc123")
     assert oauth_mod.has_client_config() is True
     # saved outside the repo, with locked-down perms
-    assert ".clipforge2" in str(p)
+    assert ".clipforge" in str(p)
 
 
 def test_youtube_client_upload_rejects_bad_json(client):
@@ -287,16 +287,16 @@ def test_paths_not_frozen_from_source():
 
 def test_ffmpeg_path_env_override(monkeypatch):
     from core import paths as p
-    monkeypatch.setenv("CLIPFORGE2_FFMPEG", "/custom/ffmpeg")
-    monkeypatch.setenv("CLIPFORGE2_FFPROBE", "/custom/ffprobe")
+    monkeypatch.setenv("CLIPFORGE_FFMPEG", "/custom/ffmpeg")
+    monkeypatch.setenv("CLIPFORGE_FFPROBE", "/custom/ffprobe")
     assert p.ffmpeg_path() == "/custom/ffmpeg"
     assert p.ffprobe_path() == "/custom/ffprobe"
 
 
 def test_ffmpeg_path_falls_back_to_which(monkeypatch):
     from core import paths as p
-    monkeypatch.delenv("CLIPFORGE2_FFMPEG", raising=False)
-    monkeypatch.delenv("CLIPFORGE2_FFPROBE", raising=False)
+    monkeypatch.delenv("CLIPFORGE_FFMPEG", raising=False)
+    monkeypatch.delenv("CLIPFORGE_FFPROBE", raising=False)
     # system ffmpeg exists in this dev environment
     assert p.ffmpeg_path() is not None
     assert p.ffprobe_path() is not None

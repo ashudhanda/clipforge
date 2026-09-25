@@ -1,6 +1,6 @@
-"""Persistent seen-store for ClipForge2 discovery.
+"""Persistent seen-store for ClipForge discovery.
 
-``~/.clipforge2/seen.json`` records every video the tool has already
+``~/.clipforge/seen.json`` records every video the tool has already
 processed, so discovery never suggests it again. Also records how many
 clips each source produced (autopilot can prefer fertile sources later).
 

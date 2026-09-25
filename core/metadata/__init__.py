@@ -1,4 +1,4 @@
-"""Metadata generation for ClipForge2: unique title/description/hashtags per clip.
+"""Metadata generation for ClipForge: unique title/description/hashtags per clip.
 
 - ``generate_metadata``: one clip -> {title, description, hashtags} via LLM.
 - ``ensure_unique_titles``: batch dedupe of titles (LLM reword -> fallback).
@@ -16,7 +16,7 @@ from core.moments.llm import get_provider
 from .generator import generate_metadata, transcript_to_text, validate_metadata
 from .uniqueness import ensure_unique_titles
 
-log = logging.getLogger("clipforge2.metadata")
+log = logging.getLogger("clipforge.metadata")
 
 __all__ = [
     "ensure_unique_titles",

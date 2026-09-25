@@ -11,7 +11,7 @@ import logging
 
 from .scorer import Clip
 
-log = logging.getLogger("clipforge2.moments.dedupe")
+log = logging.getLogger("clipforge.moments.dedupe")
 
 DEFAULT_MAX_OVERLAP = 0.40
 

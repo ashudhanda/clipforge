@@ -1,4 +1,4 @@
-"""Silence / filler-word removal planning for ClipForge2.
+"""Silence / filler-word removal planning for ClipForge.
 
 Energy-based voice activity detection (adapted conceptually from the
 auto-editor/cutawan audit: ~-28 dBFS threshold, pre/post-roll padding,
@@ -46,7 +46,7 @@ def _ffmpeg() -> str:
     path = _ffmpeg_path()
     if not path:
         raise RuntimeError(
-            "ffmpeg not found — install it (see README) or set CLIPFORGE2_FFMPEG"
+            "ffmpeg not found — install it (see README) or set CLIPFORGE_FFMPEG"
         )
     return path
 

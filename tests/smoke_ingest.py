@@ -20,7 +20,7 @@ VIDEO = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
 # Local faster-whisper model (path or HF name). The sandbox reuses the
 # ZeroPing-cached base model; on a fresh machine use e.g. "small".
 WHISPER_MODEL = os.environ.get(
-    "CF2_WHISPER_MODEL", "/home/hatch/workspace/zeroping/whisper_model"
+    "CF_WHISPER_MODEL", "/home/hatch/workspace/zeroping/whisper_model"
 )
 
 

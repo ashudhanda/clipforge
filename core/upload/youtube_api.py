@@ -1,4 +1,4 @@
-"""YouTube Data API upload for ClipForge2.
+"""YouTube Data API upload for ClipForge.
 
 Resumable 1 MB-chunk upload with retries (adapted from the yt-automation
 audit: HttpError < 500 raises immediately — auth/validation errors are
@@ -28,7 +28,7 @@ from core.config import config_dir
 
 from . import oauth as oauth_mod
 
-log = logging.getLogger("clipforge2.upload.youtube_api")
+log = logging.getLogger("clipforge.upload.youtube_api")
 
 # Granular quota buckets (since 2026-06-01, per Google's official revision
 # history): videos.insert draws from its OWN bucket — 100 calls/day —

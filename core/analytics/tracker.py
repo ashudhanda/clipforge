@@ -1,7 +1,7 @@
-"""Clip performance records for ClipForge2's feedback loop.
+"""Clip performance records for ClipForge's feedback loop.
 
-One JSON file per user (``~/.clipforge2/analytics.json``, honoring
-``CF2_CONFIG_DIR``): every built clip gets a record with its niche, style,
+One JSON file per user (``~/.clipforge/analytics.json``, honoring
+``CF_CONFIG_DIR``): every built clip gets a record with its niche, style,
 score and cost inputs. Views/likes/comments are logged manually for now —
 when Phase 6 adds YouTube OAuth, its auto-pull writes into the SAME
 ``stats`` fields, so nothing downstream changes.
@@ -23,7 +23,7 @@ from pathlib import Path
 
 from ..config import config_dir
 
-log = logging.getLogger("clipforge2.analytics")
+log = logging.getLogger("clipforge.analytics")
 
 ANALYTICS_FILE = "analytics.json"
 

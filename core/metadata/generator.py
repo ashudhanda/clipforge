@@ -1,4 +1,4 @@
-"""Metadata generation for ClipForge2: title / description / hashtags per clip.
+"""Metadata generation for ClipForge: title / description / hashtags per clip.
 
 Own implementation. Uses the shared LLM abstraction in core.moments.llm
 (Gemini default, OpenAI optional) — no second provider layer here.
@@ -20,7 +20,7 @@ import re
 
 from core.moments.llm import LLMError, estimate_tokens, get_provider
 
-log = logging.getLogger("clipforge2.metadata.generator")
+log = logging.getLogger("clipforge.metadata.generator")
 
 MAX_TITLE_CHARS = 60
 MIN_HASHTAGS = 3

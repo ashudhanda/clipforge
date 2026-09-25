@@ -31,7 +31,7 @@ _MIN_CHECK_SECONDS = 4.0
 
 
 def _cache_dir(cache_dir: Optional[str]) -> str:
-    base = cache_dir or os.path.join(os.path.expanduser("~"), ".cache", "clipforge2")
+    base = cache_dir or os.path.join(os.path.expanduser("~"), ".cache", "clipforge")
     path = os.path.join(base, DEFAULT_CACHE_SUBDIR)
     os.makedirs(path, exist_ok=True)
     return path

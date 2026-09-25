@@ -1,10 +1,10 @@
-# ClipForge2 — Phase 0 Deep Code Audit
+# ClipForge — Phase 0 Deep Code Audit
 
-**Date:** 2026-09-25 · **Phase:** 0 (study only — no implementation code written, nothing copied into ClipForge2)
+**Date:** 2026-09-25 · **Phase:** 0 (study only — no implementation code written, nothing copied into ClipForge)
 **Auditor:** Brio · **Status:** 5 repos audited at source level
 
 This report records what was learned from reading the source of five existing
-GitHub implementations, to inform ClipForge2's architecture (Python-based
+GitHub implementations, to inform ClipForge's architecture (Python-based
 Shorts pipeline: captions-first ingest, LLM moment selection, silence/filler
 removal, full-bleed 9:16 smart crop, animated captions, loudness normalization,
 metadata generation, upload/scheduling with YouTube Data API OAuth, analytics
@@ -27,7 +27,7 @@ star/issue counts are live GitHub API data as of 2026-09-25.
 
 Desktop Electron app (TypeScript) that turns podcasts/long videos into captioned
 9:16 Shorts with AI clip finding and speaker-aware reframing. The closest
-single-repo analog to ClipForge2's goals. HEAD `15c0694` (2026-09-23).
+single-repo analog to ClipForge's goals. HEAD `15c0694` (2026-09-23).
 
 ### Module / file map
 
@@ -115,9 +115,9 @@ full video never uploaded.
   `remapZoomEvents()` maps source-time events through tightened output time.
 - **Render:** full-bleed crop around horizontal focus point (scaled to output),
   time-varying focus via FFmpeg `sendcmd`; blurred-fit/letterbox modes exist but
-  are NOT the default — ClipForge2 must not adopt them (full-bleed only).
+  are NOT the default — ClipForge must not adopt them (full-bleed only).
 - **Ingest:** `downloadUrlVideo()` downloads the **entire source video**.
-  ClipForge2's captions-first/range-only ingestion remains a custom differentiator.
+  ClipForge's captions-first/range-only ingestion remains a custom differentiator.
 
 ### Tests
 
@@ -147,7 +147,7 @@ notice.
   the `sendcmd` time-varying focus render technique is directly adaptable to
   an FFmpeg command builder.
 - **Do NOT reuse:** the Electron/React/UI layer, the full-video yt-dlp download
-  pattern (ClipForge2 needs range-only), the ChatGPT/Codex auth flow (we'll use
+  pattern (ClipForge needs range-only), the ChatGPT/Codex auth flow (we'll use
   multi-provider LLM keys).
 - **Don't copy:** `broll.ts`/`imagesearch.ts` are out of scope for v1.
 
@@ -265,7 +265,7 @@ untested upstream.
 ### License / compliance
 
 **Unlicense — verified** (`LICENSE` contains the canonical public-domain
-dedication). Legally reusable for ClipForge2 with zero attribution
+dedication). Legally reusable for ClipForge with zero attribution
 requirement. Practically, Nim code can't be reused in a Python project —
 only the design/parameters transfer.
 
@@ -285,7 +285,7 @@ only the design/parameters transfer.
 - **ADAPT:** blackdetect (luma ≤ 10% on ≥ 98% pixels) — handy for cutting
   fade-to-black in gameplay.
 - **REUSE concept:** priority-max multi-label merge — elegant way to let
-  "LLM moment selection" outrank "silence detector" in ClipForge2.
+  "LLM moment selection" outrank "silence detector" in ClipForge.
 - **REUSE semantics, REWRITE:** edit-DSL combination semantics
   (`or`/`and`/`not` over per-frame masks, threshold→bool); skip the parser —
   a Python dict/config is enough.
@@ -376,12 +376,12 @@ No copyleft dependencies in the audited core path.
 ### Reuse / adapt / rewrite verdict
 
 - **Best idea to adapt:** TextTiling clip finding — a deterministic,
-  offline, no-LLM-cost clip segmenter. Valuable as ClipForge2's
+  offline, no-LLM-cost clip segmenter. Valuable as ClipForge's
   **fallback when no LLM key is available** (instead of dumping the whole
   video). Needs rewriting around our word-level transcript and
   smaller/cheaper embedding models.
 - **Adapt (simplified):** the speaker-aware reframe pipeline shape
-  (diarize → scenes → face ROI → crop merge) — but ClipForge2 should use
+  (diarize → scenes → face ROI → crop merge) — but ClipForge should use
   lighter pieces (Silero VAD + our own face tracking) rather than
   FaceNet+MediaPipe+pyannote, which are heavy and gated.
 - **Do NOT reuse as-is:** `Transcriber` (whisperx is heavier and fussier
@@ -462,11 +462,11 @@ Clean.
 
 ### Reuse / adapt / rewrite verdict
 
-- **Adapt (closest to ClipForge2's caption engine):** the
+- **Adapt (closest to ClipForge's caption engine):** the
   transcribe→group→ASS→burn data flow and `_snap_gaps()` no-blink trick are
   directly reusable logic. Its per-word pop event pattern matches our karaoke
   caption needs better than cutawan's heavier system.
-- **Extend:** only 2 styles — ClipForge2 needs ~10+ styles (we can take
+- **Extend:** only 2 styles — ClipForge needs ~10+ styles (we can take
   cutawan's 12-preset parameter space as the design reference).
 - **Adopt the pattern, not the code:** `find_tool()` platform-aware ffmpeg
   discovery is a good pattern for our one-time setup wizard (Windows/macOS/
@@ -571,7 +571,7 @@ beyond SELF_ONLY). Clean for reuse with attribution.
 ### Reuse / adapt / rewrite verdict
 
 - **Adapt heavily (the upload module is the best reference found):**
-  ClipForge2's YouTube upload should mirror this design — lazy auth with
+  ClipForge's YouTube upload should mirror this design — lazy auth with
   refresh, resumable 1 MB-chunk uploads, retry 5xx/network only (≤5 attempts,
   backoff), non-fatal thumbnail failure, `--no-upload` dry run. The manual
   paste-back OAuth flow is worth adapting for headless/server environments.
@@ -589,7 +589,7 @@ beyond SELF_ONLY). Clean for reuse with attribution.
 
 ## Conclusions
 
-### Top 5 reusable pieces (adapt into ClipForge2)
+### Top 5 reusable pieces (adapt into ClipForge)
 
 1. **Silence/filler-removal parameter set** (cutawan + auto-editor).
    Silero VAD thresholds (0.5/0.35, min speech 0.25 s, min silence 0.1 s,
@@ -658,7 +658,7 @@ beyond SELF_ONLY). Clean for reuse with attribution.
   from** (MIT, tiny, no bundled models); cutawan's value is algorithmic, not
   copyable (TypeScript/Electron); auto-editor's value is parameter/design
   (Nim); clipsai's deps are the heaviest (multi-GB GPU stack) — avoid
-  importing that stack into ClipForge2.
+  importing that stack into ClipForge.
 
 ### Model sizes / cost notes (verified facts + clearly-marked estimates)
 
@@ -673,10 +673,10 @@ beyond SELF_ONLY). Clean for reuse with attribution.
   transcript tokens, "a few cents per project" per their eval script docs).
 - auto-editor: whisper.cpp/Parakeet GGUF models user-supplied (no
   auto-download wired); Apple Speech downloads on first use (macOS 26+).
-- ClipForge2 implication: keep the default install CPU-friendly
+- ClipForge implication: keep the default install CPU-friendly
   (faster-whisper small/base, Silero VAD ~2 MB) and make GPU models optional.
 
 ---
 
 *End of Phase 0 audit. No implementation code was written; nothing was copied
-into ClipForge2. Next: architecture design (Phase 1).*
+into ClipForge. Next: architecture design (Phase 1).*

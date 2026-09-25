@@ -1,11 +1,11 @@
-"""Frozen-aware paths for ClipForge2.
+"""Frozen-aware paths for ClipForge.
 
 When running from source, resources live next to this file. When packaged
 with PyInstaller (one-click installer), resources live inside the bundle
 (sys._MEIPASS) and ffmpeg/ffprobe are bundled binaries, not PATH tools.
 
 Priority for ffmpeg/ffprobe:
-  1. CLIPFORGE2_FFMPEG / CLIPFORGE2_FFPROBE env vars (explicit override)
+  1. CLIPFORGE_FFMPEG / CLIPFORGE_FFPROBE env vars (explicit override)
   2. Bundled binary next to the frozen app (packaging puts them there)
   3. shutil.which fallback (running from source with system ffmpeg)
 """
@@ -50,7 +50,7 @@ def _bundled_bin(name: str) -> Path | None:
 
 def ffmpeg_path() -> str | None:
     """Best ffmpeg binary path, or None if none found."""
-    env = os.environ.get("CLIPFORGE2_FFMPEG", "").strip()
+    env = os.environ.get("CLIPFORGE_FFMPEG", "").strip()
     if env:
         return env
     b = _bundled_bin("ffmpeg")
@@ -61,7 +61,7 @@ def ffmpeg_path() -> str | None:
 
 def ffprobe_path() -> str | None:
     """Best ffprobe binary path, or None if none found."""
-    env = os.environ.get("CLIPFORGE2_FFPROBE", "").strip()
+    env = os.environ.get("CLIPFORGE_FFPROBE", "").strip()
     if env:
         return env
     b = _bundled_bin("ffprobe")

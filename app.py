@@ -1,4 +1,4 @@
-"""ClipForge2 — beginner-friendly local web app.
+"""ClipForge — beginner-friendly local web app.
 
 Dashboard + one-time setup wizard. One launch command, everything else is
 buttons — no terminal needed for the user.
@@ -39,7 +39,7 @@ from core.upload import oauth as yt_oauth
 from core.upload import quota_status as yt_quota_status
 from core.upload import upload_clip as yt_upload_clip
 
-log = logging.getLogger("clipforge2.app")
+log = logging.getLogger("clipforge.app")
 
 BASE_DIR = resource_path()
 PREVIEWS_DIR = BASE_DIR / "previews"
@@ -462,7 +462,7 @@ def api_youtube_connect():
 
     threading.Thread(target=_do, daemon=True).start()
     return jsonify({"ok": True,
-                    "note": "A browser tab opened — approve ClipForge2 there; "
+                    "note": "A browser tab opened — approve ClipForge there; "
                             "this page will show Connected ✅."})
 
 
@@ -839,7 +839,7 @@ def _restyle_clip(job_id: str, idx: int, style: str):
 
 def main():
     import argparse
-    p = argparse.ArgumentParser(description="ClipForge2 dashboard")
+    p = argparse.ArgumentParser(description="ClipForge dashboard")
     p.add_argument("--port", type=int, default=5057)
     p.add_argument("--no-browser", action="store_true")
     args = p.parse_args()
@@ -853,18 +853,18 @@ def main():
             from core.config import config_dir
             log_dir = config_dir()
             log_dir.mkdir(parents=True, exist_ok=True)
-            fh = logging.FileHandler(str(log_dir / "clipforge2.log"),
+            fh = logging.FileHandler(str(log_dir / "clipforge.log"),
                                      encoding="utf-8")
             fh.setFormatter(logging.Formatter(
                 "%(asctime)s %(name)s %(levelname)s %(message)s"))
             logging.getLogger().addHandler(fh)
-            log.info("frozen build — logging to %s", log_dir / "clipforge2.log")
+            log.info("frozen build — logging to %s", log_dir / "clipforge.log")
         except OSError as e:
             log.warning("couldn't set up file logging: %s", e)
     url = f"http://127.0.0.1:{args.port}"
-    if not args.no_browser and not os.environ.get("CF2_NO_BROWSER"):
+    if not args.no_browser and not os.environ.get("CF_NO_BROWSER"):
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
-    print(f"\n  ClipForge2 is running → {url}\n  Press Ctrl+C to stop.\n")
+    print(f"\n  ClipForge is running → {url}\n  Press Ctrl+C to stop.\n")
     app.run(host="127.0.0.1", port=args.port, threaded=True, use_reloader=False)
 
 

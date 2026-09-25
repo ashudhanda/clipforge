@@ -1,4 +1,4 @@
-"""ClipForge2 ingest layer — captions-first, range-only media acquisition.
+"""ClipForge ingest layer — captions-first, range-only media acquisition.
 
 Public entry point: :func:`ingest`.
 """

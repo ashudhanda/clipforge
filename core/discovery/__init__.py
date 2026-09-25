@@ -1,4 +1,4 @@
-"""ClipForge2 source discovery — niche -> candidate long videos.
+"""ClipForge source discovery — niche -> candidate long videos.
 
 Public API:
     discover_for_autopilot(config) -> {niche_id: [candidate, ...]}

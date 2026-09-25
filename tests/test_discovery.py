@@ -268,6 +268,6 @@ def test_seen_store_corrupt_file_is_empty(tmp_path):
 
 
 def test_seen_store_default_path_uses_config_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("CF2_CONFIG_DIR", str(tmp_path / ".clipforge2"))
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
     s = SeenStore()
-    assert str(s.path).endswith(".clipforge2/seen.json")
+    assert str(s.path).endswith(".clipforge/seen.json")

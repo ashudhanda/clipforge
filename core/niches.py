@@ -1,4 +1,4 @@
-"""ClipForge2 niche catalogue — 40 locked niches + Custom.
+"""ClipForge niche catalogue — 40 locked niches + Custom.
 
 Locked by Ashu (2026-09-25). The wizard offers multi-select; "custom" lets
 the user type any niche of their own.

@@ -4,7 +4,7 @@ TextTiling segmenter has real boundaries to find.
 
 Topics: founder routines (0-150s), EV batteries (150-300s),
 sourdough baking (300-450s), sleep science (450-600s).
-Run:  cd ~/workspace/clipforge2 && .venv/bin/python tests/fixtures/gen_podcast_10min.py
+Run:  cd ~/workspace/clipforge && .venv/bin/python tests/fixtures/gen_podcast_10min.py
 """
 
 import json

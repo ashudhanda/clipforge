@@ -1,4 +1,4 @@
-"""Batch title uniqueness for ClipForge2 metadata.
+"""Batch title uniqueness for ClipForge metadata.
 
 Own implementation. When two clips in one batch get the same title:
 1. Ask the LLM to reword (max 2 retries).
@@ -16,7 +16,7 @@ from core.moments.llm import LLMError, get_provider
 
 from .generator import MAX_TITLE_CHARS
 
-log = logging.getLogger("clipforge2.metadata.uniqueness")
+log = logging.getLogger("clipforge.metadata.uniqueness")
 
 _WORD = re.compile(r"[A-Za-z][A-Za-z0-9']{3,}")
 

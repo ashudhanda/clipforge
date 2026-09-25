@@ -1,4 +1,4 @@
-"""End-to-end Shorts build pipeline for ClipForge2.
+"""End-to-end Shorts build pipeline for ClipForge.
 
 ``build_short(source_video, clip, out_path)``:
   1. plan silence + filler-word cuts on [clip.start, clip.end)
@@ -26,7 +26,7 @@ from . import silence as _silence
 from core.paths import ffmpeg_path as _ffmpeg_path
 from core.paths import ffprobe_path as _ffprobe_path
 
-log = logging.getLogger("clipforge2.edit")
+log = logging.getLogger("clipforge.edit")
 
 OUT_W, OUT_H = 1080, 1920
 FPS = 30
@@ -36,7 +36,7 @@ def _ffmpeg() -> str:
     path = _ffmpeg_path()
     if not path:
         raise RuntimeError(
-            "ffmpeg not found — install it (see README) or set CLIPFORGE2_FFMPEG"
+            "ffmpeg not found — install it (see README) or set CLIPFORGE_FFMPEG"
         )
     return path
 

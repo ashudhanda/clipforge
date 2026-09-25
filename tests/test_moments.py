@@ -108,7 +108,7 @@ def _two_topic_transcript(n_each: int = 12) -> list[dict]:
 def test_get_provider_no_keys_raises(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("CF2_LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("CF_LLM_PROVIDER", raising=False)
     with pytest.raises(LLMError):
         get_provider()
 
@@ -116,7 +116,7 @@ def test_get_provider_no_keys_raises(monkeypatch):
 def test_get_provider_prefers_gemini(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "k1")
     monkeypatch.setenv("OPENAI_API_KEY", "k2")
-    monkeypatch.delenv("CF2_LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("CF_LLM_PROVIDER", raising=False)
     assert isinstance(get_provider(), GeminiProvider)
 
 

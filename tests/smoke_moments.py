@@ -4,7 +4,7 @@ Exercises the full chain on a realistic ~10-min synthetic podcast fixture:
   llm scoring -> sentence snapping -> duration validation -> dedupe,
 plus the offline TextTiling path (boundary detection + determinism).
 
-Run:  cd ~/workspace/clipforge2 && .venv/bin/python tests/smoke_moments.py
+Run:  cd ~/workspace/clipforge && .venv/bin/python tests/smoke_moments.py
 """
 
 import json

@@ -1,4 +1,4 @@
-"""ClipForge2 user config — ~/.clipforge2/config.json.
+"""ClipForge user config — ~/.clipforge/config.json.
 
 Never stores secrets (no API keys, no OAuth tokens). YouTube auth lands
 in Phase 6 and will use the OS keyring / separate token file, not this.
@@ -12,8 +12,8 @@ from pathlib import Path
 
 from .niches import niche_ids
 
-APP_DIR_ENV = "CF2_CONFIG_DIR"
-DEFAULT_DIR = Path.home() / ".clipforge2"
+APP_DIR_ENV = "CF_CONFIG_DIR"
+DEFAULT_DIR = Path.home() / ".clipforge"
 CONFIG_FILE = "config.json"
 
 MODES = ("manual", "semi-auto", "autopilot")

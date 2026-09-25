@@ -1,12 +1,12 @@
-# Connect YouTube to ClipForge2 — do this once (≈5 minutes)
+# Connect YouTube to ClipForge — do this once (≈5 minutes)
 
-ClipForge2 can upload your Shorts straight to YouTube by itself. For that,
+ClipForge can upload your Shorts straight to YouTube by itself. For that,
 **you** need to do a one-time setup in your own Google account (I can't do
 this part for you — it's your account, your clicks). No coding, just clicking.
 
 ## What you'll end up with
 
-- YouTube uploads happen from a button in the ClipForge2 dashboard.
+- YouTube uploads happen from a button in the ClipForge dashboard.
 - Free quota: **100 uploads per day** (YouTube's limit for new apps, Pacific-time
   day). The dashboard shows how many you've used today.
 - While your Google Cloud app is unverified (normal for personal use), uploads
@@ -22,7 +22,7 @@ this part for you — it's your account, your clicks). No coding, just clicking.
    account that owns your YouTube channel.
 2. At the top, click the project dropdown (it may say "Select a project")
    → **New Project**.
-3. Name it `ClipForge2` (any name works) → **Create**. Wait for it to finish,
+3. Name it `ClipForge` (any name works) → **Create**. Wait for it to finish,
    then make sure it's selected in the dropdown.
 
    ![Project dropdown at the top of Cloud Console](images/console-project-dropdown.png)
@@ -40,7 +40,7 @@ this part for you — it's your account, your clicks). No coding, just clicking.
    (in older console versions: **APIs & Services → OAuth consent screen**).
 2. Choose **External** → **Create**.
 3. Fill in:
-   - App name: `ClipForge2`
+   - App name: `ClipForge`
    - User support email: your email
    - Developer contact email: your email
 4. Click **Save and Continue** through Scopes and Test users (you can skip
@@ -53,22 +53,22 @@ this part for you — it's your account, your clicks). No coding, just clicking.
 
 1. Go to **APIs & Services → Credentials**.
 2. Click **+ Create Credentials → OAuth client ID**.
-3. Application type: **Desktop app**. Name it `ClipForge2 Desktop`.
+3. Application type: **Desktop app**. Name it `ClipForge Desktop`.
 4. Click **Create** → **Download JSON** (the ⬇ button on the right). Keep
    that file somewhere you can find it — e.g. your Downloads folder.
    (Don't open it, don't share it, don't post it anywhere.)
 
    ![Credentials page with the Create credentials button](images/credentials-page.png)
 
-   > ⚠️ **Open-source safety:** ClipForge2's code is public on GitHub. The
+   > ⚠️ **Open-source safety:** ClipForge's code is public on GitHub. The
    > `youtube_client.json` (and the `youtube_token.json` created at connect
    > time) must **never** be copied into the repo folder — the dashboard
    > stores them in your private app folder only. The repo's `.gitignore`
    > blocks them from being committed even by accident.
 
-## Step 5 — Connect inside ClipForge2 (1 minute)
+## Step 5 — Connect inside ClipForge (1 minute)
 
-1. Open the ClipForge2 dashboard (it opens by itself when you run the app).
+1. Open the ClipForge dashboard (it opens by itself when you run the app).
 2. At the top you'll see the YouTube setup box. Click **Choose file**,
    select the JSON you downloaded in Step 4, then click
    **📤 Upload client JSON**.
@@ -76,7 +76,7 @@ this part for you — it's your account, your clicks). No coding, just clicking.
 4. Your browser opens a Google sign-in page:
    - Pick the Google account that owns your YouTube channel.
    - Google may warn **"Google hasn't verified this app"** — that's normal,
-     it's *your own* app. Click **Advanced → Go to ClipForge2 (unsafe)**.
+     it's *your own* app. Click **Advanced → Go to ClipForge (unsafe)**.
    - Tick the box for **"Upload YouTube videos"** (that's all we ever ask
      for — we can't read your emails or anything else) → **Continue**.
 4. The dashboard now shows **Connected ✅** with today's upload quota.
@@ -96,9 +96,9 @@ this part for you — it's your account, your clicks). No coding, just clicking.
 ## Good to know
 
 - The login token is stored only on your computer
-  (`~/.clipforge2/youtube_token.json`) and refreshes itself silently —
+  (`~/.clipforge/youtube_token.json`) and refreshes itself silently —
   you approve **once**, never again.
 - **Disconnect** anytime with the Disconnect button in the dashboard.
-- ClipForge2 never sees your Google password and never uploads anything
+- ClipForge never sees your Google password and never uploads anything
   you didn't approve (except autopilot mode, which you switched on yourself).
 - Quota resets at **midnight Pacific Time** (that's YouTube's rule, not ours).

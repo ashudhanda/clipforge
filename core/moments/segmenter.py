@@ -1,4 +1,4 @@
-"""Offline (no-LLM, zero-cost) topic segmentation for ClipForge2.
+"""Offline (no-LLM, zero-cost) topic segmentation for ClipForge.
 
 TextTiling-lite, adapted from the Phase 0 audit of clipsai's TextTiler
 (sentence embeddings -> gap scores -> depth scores -> cutoff) — rewritten
@@ -19,7 +19,7 @@ import numpy as np
 
 from .scorer import Clip, group_sentences
 
-log = logging.getLogger("clipforge2.moments.segmenter")
+log = logging.getLogger("clipforge.moments.segmenter")
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer

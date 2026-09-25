@@ -1,7 +1,7 @@
 """No-API-quota fallback: YouTube Studio manual upload helper.
 
 When the Data API quota is used up (or the user never connects OAuth),
-ClipForge2 prepares everything so the manual YouTube Studio upload takes
+ClipForge prepares everything so the manual YouTube Studio upload takes
 under a minute: the video file plus title/description/hashtags ready to
 paste, and exact numbered steps. Full browser automation is deliberately
 out of scope — Studio's upload flow changes often and breaks bots.

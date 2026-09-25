@@ -39,7 +39,7 @@ def make_rec(clip_id, niche="gaming", style="hormozi", score=80.0,
 
 @pytest.fixture()
 def store(tmp_path, monkeypatch):
-    monkeypatch.setenv("CF2_CONFIG_DIR", str(tmp_path / ".clipforge2"))
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
     return AnalyticsStore()
 
 
@@ -99,7 +99,7 @@ def test_mark_uploaded_and_update(store):
 
 
 def test_persistence_reload(tmp_path, monkeypatch):
-    monkeypatch.setenv("CF2_CONFIG_DIR", str(tmp_path / ".clipforge2"))
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
     s1 = AnalyticsStore()
     s1.record_clip("a1_0", "gaming", "hormozi", 80,
                    "https://youtu.be/x", "t")
@@ -110,8 +110,8 @@ def test_persistence_reload(tmp_path, monkeypatch):
 
 
 def test_corrupt_file_starts_empty(tmp_path, monkeypatch):
-    monkeypatch.setenv("CF2_CONFIG_DIR", str(tmp_path / ".clipforge2"))
-    d = tmp_path / ".clipforge2"
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
+    d = tmp_path / ".clipforge"
     d.mkdir(parents=True)
     (d / "analytics.json").write_text("{not valid json[[[",
                                       encoding="utf-8")
@@ -124,7 +124,7 @@ def test_corrupt_file_starts_empty(tmp_path, monkeypatch):
 
 
 def test_config_dir_respected(tmp_path, monkeypatch):
-    monkeypatch.setenv("CF2_CONFIG_DIR", str(tmp_path / "custom"))
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / "custom"))
     s = AnalyticsStore()
     s.record_clip("a1_0", "gaming", "hormozi", 80, "https://youtu.be/x", "t")
     assert (tmp_path / "custom" / "analytics.json").exists()

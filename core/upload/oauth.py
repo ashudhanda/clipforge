@@ -1,7 +1,7 @@
-"""YouTube Data API OAuth for ClipForge2 (installed/desktop-app flow).
+"""YouTube Data API OAuth for ClipForge (installed/desktop-app flow).
 
 One-time consent in the user's own browser; afterwards the refresh token
-is used silently. Secrets live in ~/.clipforge2/ (never in code, logs,
+is used silently. Secrets live in ~/.clipforge/ (never in code, logs,
 or the dashboard config) and the token file is chmod 600.
 
 Adapted from the yt-automation audit: minimal youtube.upload scope,
@@ -18,7 +18,7 @@ from pathlib import Path
 
 from core.config import config_dir
 
-log = logging.getLogger("clipforge2.upload.oauth")
+log = logging.getLogger("clipforge.upload.oauth")
 
 YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 
@@ -26,8 +26,8 @@ YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 _GOOGLE_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
 _GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
 
-CLIENT_ID_ENV = "CF2_YT_CLIENT_ID"
-CLIENT_SECRET_ENV = "CF2_YT_CLIENT_SECRET"
+CLIENT_ID_ENV = "CF_YT_CLIENT_ID"
+CLIENT_SECRET_ENV = "CF_YT_CLIENT_SECRET"
 CLIENT_FILE = "youtube_client.json"   # downloaded from Google Cloud Console
 TOKEN_FILE = "youtube_token.json"
 

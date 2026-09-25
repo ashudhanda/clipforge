@@ -1,4 +1,4 @@
-"""Speaker-aware 9:16 full-bleed cover crop for ClipForge2.
+"""Speaker-aware 9:16 full-bleed cover crop for ClipForge.
 
 HARD RULE (from a past project that lost views over this): the crop is
 ALWAYS full-bleed — the 9:16 window is cut out of the source frame and
@@ -30,7 +30,7 @@ CROP_RATIO = 9 / 16
 def _ffmpeg() -> str:
     path = _ffmpeg_path()
     if not path:
-        raise RuntimeError("ffmpeg not found — install it (see README) or set CLIPFORGE2_FFMPEG")
+        raise RuntimeError("ffmpeg not found — install it (see README) or set CLIPFORGE_FFMPEG")
     return path
 
 

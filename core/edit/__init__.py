@@ -1,4 +1,4 @@
-"""ClipForge2 edit engine: silence cuts -> 9:16 smart crop -> caption burn -> loudnorm."""
+"""ClipForge edit engine: silence cuts -> 9:16 smart crop -> caption burn -> loudnorm."""
 
 from .captions import (
     AVAILABLE_STYLES,

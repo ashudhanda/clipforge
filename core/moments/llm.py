@@ -1,4 +1,4 @@
-"""Pluggable LLM provider abstraction for ClipForge2.
+"""Pluggable LLM provider abstraction for ClipForge.
 
 Design notes (logic adapted from the Phase 0 audit of cutawan's highlights
 pipeline — rewritten in Python, our own code):
@@ -20,7 +20,7 @@ import os
 import urllib.error
 import urllib.request
 
-log = logging.getLogger("clipforge2.moments.llm")
+log = logging.getLogger("clipforge.moments.llm")
 
 
 class LLMError(RuntimeError):
@@ -28,7 +28,7 @@ class LLMError(RuntimeError):
 
 
 # --- Model config lists (NOT hardcoded in logic) ---------------------------
-# Order = preference order. Override with CF2_GEMINI_MODEL / CF2_OPENAI_MODEL
+# Order = preference order. Override with CF_GEMINI_MODEL / CF_OPENAI_MODEL
 # to pin a single model. On a 404 "model not found" the provider falls through
 # to the next entry, so renamed/retired models degrade gracefully instead of
 # crashing (lesson from our own chrome-136 hardcoding bug).
@@ -83,7 +83,7 @@ class GeminiProvider(LLMProvider):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
         if not self.api_key:
             raise LLMError("GEMINI_API_KEY is not set")
-        pinned = os.environ.get("CF2_GEMINI_MODEL")
+        pinned = os.environ.get("CF_GEMINI_MODEL")
         self.models = [pinned] if pinned else list(models or DEFAULT_GEMINI_MODELS)
 
     def generate_json(self, system: str, user: str) -> tuple[object, dict]:
@@ -129,7 +129,7 @@ class OpenAIProvider(LLMProvider):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         if not self.api_key:
             raise LLMError("OPENAI_API_KEY is not set")
-        pinned = os.environ.get("CF2_OPENAI_MODEL")
+        pinned = os.environ.get("CF_OPENAI_MODEL")
         self.models = [pinned] if pinned else list(models or DEFAULT_OPENAI_MODELS)
 
     def generate_json(self, system: str, user: str) -> tuple[object, dict]:
@@ -190,7 +190,7 @@ def _parse_json_strict(text: str) -> object:
 
 def get_provider(prefer: str | None = None) -> LLMProvider:
     """Pick a provider from available API keys. Raise LLMError if none."""
-    prefer = (prefer or os.environ.get("CF2_LLM_PROVIDER", "")).lower()
+    prefer = (prefer or os.environ.get("CF_LLM_PROVIDER", "")).lower()
     gemini_key = os.environ.get("GEMINI_API_KEY", "")
     openai_key = os.environ.get("OPENAI_API_KEY", "")
     if prefer == "openai":

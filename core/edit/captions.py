@@ -1,4 +1,4 @@
-"""Caption burn-in for ClipForge2: words -> ASS -> ffmpeg/libass.
+"""Caption burn-in for ClipForge: words -> ASS -> ffmpeg/libass.
 
 Pipeline (adapted from the auto-caption audit):
 word-level timestamps -> grouped caption events -> ASS file ->

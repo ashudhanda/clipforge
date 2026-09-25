@@ -1,4 +1,4 @@
-"""ClipForge2 upload layer.
+"""ClipForge upload layer.
 
 ``upload_clip(clip, mode)`` routes one built clip to its destination:
 
@@ -18,7 +18,7 @@ from . import browser_upload, oauth
 from .youtube_api import (MAX_UPLOADS_PER_DAY, QuotaExceeded, UploadError,
                           quota_status, upload_short)
 
-log = logging.getLogger("clipforge2.upload")
+log = logging.getLogger("clipforge.upload")
 
 UPLOAD_MODES = ("api", "browser", "manual")
 

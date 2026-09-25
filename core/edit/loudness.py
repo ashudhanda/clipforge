@@ -1,4 +1,4 @@
-"""Loudness normalization for ClipForge2.
+"""Loudness normalization for ClipForge.
 
 Single-pass EBU R128-style normalization via ffmpeg's ``loudnorm``
 (YouTube-Shorts-friendly -14 LUFS target) plus a true-peak safety

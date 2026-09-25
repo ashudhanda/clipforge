@@ -1,4 +1,4 @@
-"""ClipForge2 analytics: performance feedback loop."""
+"""ClipForge analytics: performance feedback loop."""
 
 from .feedback import tuning_suggestions
 from .insights import build_insights
