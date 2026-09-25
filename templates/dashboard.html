@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipForge2 — Dashboard</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2e38; --txt:#eef1f6; --dim:#9aa3b2;
+          --acc:#ffb020; --acc2:#4da3ff; --ok:#37d67a; --bad:#ff5d5d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt);
+         font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1080px; margin:0 auto; padding:24px 20px 80px; }
+  header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  header h1 { margin:0; font-size:24px; }
+  .badge { background:var(--line); border-radius:999px; padding:5px 14px; font-size:13px; }
+  .badge.auto { background:#12351f; color:var(--ok); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+          padding:20px; margin-bottom:16px; }
+  .card h2 { margin:0 0 12px; font-size:18px; }
+  .hint { color:var(--dim); font-size:14px; margin:0 0 12px; }
+  input[type=text], select { background:#12151b; border:1px solid var(--line);
+    color:var(--txt); border-radius:10px; padding:11px 12px; font-size:15px; width:100%; }
+  .frow { display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:12px; }
+  @media(min-width:700px){ .frow.two{grid-template-columns:1fr 1fr;} .frow.three{grid-template-columns:2fr 1fr 1fr;} }
+  .bigbtn { background:var(--acc); color:#111; border:0; border-radius:12px;
+            padding:14px 28px; font-size:17px; font-weight:700; cursor:pointer; width:100%; }
+  .bigbtn:disabled { opacity:.5; }
+  .job { border-left:4px solid var(--acc2); }
+  .job.done { border-left-color:var(--ok); }
+  .job.failed { border-left-color:var(--bad); }
+  .pbar { height:10px; background:#0c0e12; border-radius:5px; overflow:hidden; margin:8px 0; }
+  .pbar > div { height:100%; background:var(--acc2); width:0%; transition:width .5s; }
+  .job.done .pbar > div { background:var(--ok); }
+  .step { font-size:14px; color:var(--dim); }
+  .note { font-size:13px; color:var(--acc2); margin:4px 0; }
+  .err { color:var(--bad); font-size:14px; }
+  .clips { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+           gap:14px; margin-top:14px; }
+  .clip { background:#12151b; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .clip video { width:100%; aspect-ratio:9/16; object-fit:cover; display:block; background:#000; }
+  .clip .body { padding:12px; }
+  .clip .title { font-weight:600; font-size:14px; margin-bottom:6px; }
+  .clip .desc { font-size:12px; color:var(--dim); margin-bottom:6px;
+                display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .tags { font-size:12px; color:var(--acc2); margin-bottom:8px; word-break:break-word; }
+  .meta { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  .score { font-size:12px; border-radius:999px; padding:3px 10px; background:var(--line); }
+  .score.hi { background:#12351f; color:var(--ok); }
+  .score.lo { background:#3a1414; color:var(--bad); }
+  .skip { font-size:12px; color:var(--bad); }
+  .cbtns { display:flex; gap:6px; }
+  .cbtns button, .cbtns a { flex:1; text-align:center; border-radius:8px; padding:8px 4px;
+    font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; }
+  .approve { background:var(--ok); color:#06130c; border:0; }
+  .approve.on { background:var(--line); color:var(--dim); }
+  .dl { background:var(--acc2); color:#06121f; }
+  .restyle { width:100%; margin-top:8px; font-size:13px; padding:7px; }
+  .upload-note { background:#1c1607; border:1px solid #5a4510; border-radius:10px;
+                 padding:12px; font-size:14px; color:#ffd98a; margin-bottom:16px; }
+  .gate-note { font-size:13px; color:var(--dim); margin-top:8px; }
+  .src { display:flex; gap:10px; align-items:flex-start; padding:10px 12px;
+         border:1px solid var(--line); border-radius:10px; margin-bottom:8px;
+         background:#12151b; cursor:pointer; }
+  .src input { margin-top:4px; width:18px; height:18px; accent-color:var(--acc); flex-shrink:0; }
+  .src .stitle { font-size:14px; font-weight:600; display:block; margin-bottom:4px; }
+  .src .stitle a { color:var(--txt); text-decoration:none; }
+  .src .stitle a:hover { text-decoration:underline; }
+  .src .smeta { font-size:12px; color:var(--dim); }
+  .src .cap { color:var(--ok); }
+  .nichehead { font-size:14px; font-weight:700; margin:14px 0 8px; color:var(--acc2); }
+  .arow { display:flex; justify-content:space-between; gap:8px; padding:7px 0;
+          border-bottom:1px solid var(--line); font-size:14px; }
+  .arow:last-child { border-bottom:0; }
+  .asub { font-size:14px; margin:14px 0 4px; color:var(--acc2); font-weight:600; }
+  .sugg { border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+          margin-bottom:8px; font-size:14px; background:#12151b; }
+  .sugg .why { color:var(--dim); font-size:13px; margin-top:4px; }
+  .conf { font-size:11px; border-radius:999px; padding:2px 9px;
+          background:var(--line); margin-left:8px; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎬 ClipForge2</h1>
+    <span class="badge" id="modeBadge">…</span>
+    <span class="badge" id="styleBadge">…</span>
+  </header>
+
+  <div class="upload-note" id="uploadNote">⏳ Checking upload status…</div>
+
+  <div class="card">
+    <h2>✨ Make clips from a video</h2>
+    <p class="hint">Paste a YouTube link. We'll grab the transcript, find the best moments, and build vertical Shorts.</p>
+    <div class="frow"><input type="text" id="url" placeholder="https://www.youtube.com/watch?v=…"></div>
+    <div class="frow three">
+      <select id="nicheSel"></select>
+      <select id="styleSel"></select>
+      <select id="maxClips">
+        <option value="1">1 clip</option><option value="2">2 clips</option>
+        <option value="3" selected>3 clips</option><option value="5">5 clips</option>
+      </select>
+    </div>
+    <button class="bigbtn" id="makeBtn">Make clips 🚀</button>
+    <div class="err" id="makeErr" style="display:none;margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🔍 Auto-discover sources</h2>
+    <p class="hint">Find fresh long videos in your niches — tick the ones you want clips from. Already-used videos never show up twice.</p>
+    <button class="bigbtn" id="discBtn">Find videos 🔍</button>
+    <div class="step" id="discStatus" style="margin-top:8px"></div>
+    <div id="discResults"></div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Analytics</h2>
+    <p class="hint">Which niches and caption styles actually get views — logged by you, learned by the tool. Tuning suggestions here never apply themselves; every change is your call.</p>
+    <div id="analyticsBody"><div class="step">Loading…</div></div>
+  </div>
+
+  <div id="jobs"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let CFG = null;
+let NICHE_NAMES = {};
+let UP = null;
+
+async function init(){
+  const [cfg, styles, up] = await Promise.all([
+    fetch("/api/config").then(r=>r.json()),
+    fetch("/api/styles").then(r=>r.json()),
+    fetch("/api/upload-status").then(r=>r.json()),
+  ]);
+  CFG = cfg;
+  $("modeBadge").textContent = "Mode: " + cfg.mode;
+  $("modeBadge").classList.toggle("auto", cfg.mode==="autopilot");
+  $("styleBadge").textContent = "Captions: " + (cfg.caption_style==="random"?"🎲 random":cfg.caption_style);
+  UP = up;
+  renderUpload(up);
+
+  const niches = await fetch("/api/niches").then(r=>r.json());
+  NICHE_NAMES = Object.fromEntries(niches.map(n=>[n.id, n.name]));
+  const allowed = new Set(cfg.niches||[]);
+  $("nicheSel").innerHTML = niches.filter(n=>allowed.has(n.id)).map(n=>
+    `<option value="${n.id}">${n.name}</option>`).join("") ||
+    `<option value="custom">Custom</option>`;
+  $("styleSel").innerHTML = styles.map(s=>
+    `<option value="${s.id}"${s.id===cfg.caption_style?" selected":""}>${s.id==="random"?"🎲 Random every clip":s.id}</option>`).join("");
+
+  $("makeBtn").onclick = makeClips;
+  $("discBtn").onclick = startDiscover;
+  setInterval(refreshJobs, 3000);
+  refreshJobs();
+  refreshAnalytics();
+}
+
+async function makeClips(){
+  const err=$("makeErr"); err.style.display="none";
+  const btn=$("makeBtn"); btn.disabled=true; btn.textContent="Starting…";
+  try{
+    const r = await fetch("/api/jobs",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ url:$("url").value.trim(),
+        niche_id:$("nicheSel").value, caption_style:$("styleSel").value,
+        max_clips:$("maxClips").value })});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error);
+    $("url").value="";
+    refreshJobs();
+  }catch(e){ err.textContent=e.message; err.style.display="block"; }
+  btn.disabled=false; btn.textContent="Make clips 🚀";
+}
+
+// ---- YouTube upload wiring ----
+function renderUpload(up){
+  const box = $("uploadNote");
+  if(up.connected){
+    const q = up.quota||{};
+    box.innerHTML = `📤 Upload: Connected ✅ · ${q.used||0}/${q.limit||100} uploads used today (resets ${escapeHtml(q.resets||"midnight Pacific Time")}).` +
+      `<button class="restyle" id="ytDisc" style="margin-left:8px">Disconnect</button>`;
+    $("ytDisc").onclick = async ()=>{
+      await fetch("/api/youtube/disconnect",{method:"POST"});
+      UP = await fetch("/api/upload-status").then(r=>r.json());
+      renderUpload(UP); refreshJobs();
+    };
+  } else if(!up.has_client){
+    box.innerHTML = `📤 <b>Connect YouTube</b> — one-time setup, no coding.<br>
+      <span style="font-size:13px">① In Google Cloud Console create an <b>OAuth client (Desktop app)</b>
+      and download its JSON — <span style="color:var(--dim)">see docs/YOUTUBE_SETUP.md</span><br>
+      ② Upload that JSON here:</span><br>
+      <input type="file" id="clientFile" accept="application/json,.json" style="margin-top:8px">
+      <button class="bigbtn" id="clientUploadBtn" style="margin-top:8px">📤 Upload client JSON</button>
+      <div id="clientUploadMsg" style="margin-top:6px;font-size:13px"></div>`;
+    $("clientUploadBtn").onclick = async ()=>{
+      const f = $("clientFile").files[0];
+      const msg = $("clientUploadMsg");
+      if(!f){ msg.textContent = "❌ Choose the JSON file first."; return; }
+      const btn = $("clientUploadBtn");
+      btn.disabled = true; btn.textContent = "⏳ Uploading…";
+      try{
+        const fd = new FormData();
+        fd.append("client_json", f);
+        const r = await fetch("/api/youtube/client",{method:"POST",body:fd});
+        const j = await r.json();
+        if(!j.ok) throw new Error(j.error);
+        msg.textContent = "✅ " + (j.note||"Saved.");
+        UP = await fetch("/api/upload-status").then(r=>r.json());
+        renderUpload(UP);
+      }catch(e){ msg.textContent = "❌ "+e.message; }
+      btn.disabled = false; btn.textContent = "📤 Upload client JSON";
+    };
+  } else {
+    box.innerHTML = `📤 Upload: ${escapeHtml(up.note||"")}` +
+      `<br><button class="bigbtn" id="connectBtn" style="margin-top:8px">🔗 Connect YouTube</button>`;
+    $("connectBtn").onclick = connectYouTube;
+  }
+}
+
+async function connectYouTube(){
+  const btn = $("connectBtn");
+  try{
+    const r = await fetch("/api/youtube/connect",{method:"POST"});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error);
+    btn.disabled = true;
+    btn.textContent = "⏳ Approve in your browser…";
+    pollUploadStatus();
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function pollUploadStatus(){
+  for(let i=0;i<60;i++){
+    await new Promise(r=>setTimeout(r,3000));
+    try{
+      UP = await fetch("/api/upload-status").then(r=>r.json());
+      renderUpload(UP);
+      if(UP.connected){ refreshJobs(); break; }
+    }catch(e){ /* keep polling */ }
+  }
+}
+
+async function uploadClip(btn){
+  const [jobId, idx] = btn.dataset.upload.split(":");
+  btn.disabled = true; btn.textContent = "⏳ Uploading…";
+  try{
+    const r = await fetch(`/api/jobs/${jobId}/clips/${idx}/upload`,{method:"POST"});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error);
+  }catch(e){ alert("❌ "+e.message); }
+  setTimeout(refreshJobs, 2500);
+}
+
+// ---- source discovery ----
+async function startDiscover(){
+  const btn=$("discBtn"), st=$("discStatus");
+  btn.disabled=true; st.textContent="🔍 Searching YouTube for fresh videos in your niches…";
+  $("discResults").innerHTML="";
+  try{
+    const r = await fetch("/api/discover",{method:"POST"});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error);
+    pollDiscover(j.run_id);
+  }catch(e){ st.textContent="❌ "+e.message; btn.disabled=false; }
+}
+
+async function pollDiscover(runId){
+  let j;
+  try{ j = await fetch("/api/discover/"+runId).then(r=>r.json()); }
+  catch(e){ setTimeout(()=>pollDiscover(runId), 4000); return; }
+  if(!j.ok){ $("discStatus").textContent="❌ "+j.error; $("discBtn").disabled=false; return; }
+  if(j.status==="running"){ setTimeout(()=>pollDiscover(runId), 3000); return; }
+  $("discBtn").disabled=false;
+  if(j.status==="error"){ $("discStatus").textContent="❌ "+(j.error||"discovery failed"); return; }
+  renderDiscover(j.candidates||{});
+}
+
+function fmtViews(v){
+  if(v==null) return "? views";
+  if(v>=1e6) return (v/1e6).toFixed(1)+"M views";
+  if(v>=1e3) return (v/1e3).toFixed(1)+"K views";
+  return v+" views";
+}
+
+function renderDiscover(grouped){
+  const box=$("discResults");
+  const niches=Object.keys(grouped);
+  if(!niches.length){
+    $("discStatus").textContent="No fresh videos found — try again later.";
+    return;
+  }
+  let total=0;
+  const html=niches.map(nid=>{
+    const name = nid==="custom" && CFG.custom_niche
+      ? escapeHtml(CFG.custom_niche) : escapeHtml(NICHE_NAMES[nid]||nid);
+    const rows=(grouped[nid]||[]).map(c=>{
+      total++;
+      const meta=[c.duration_str||"?", fmtViews(c.view_count),
+        c.has_captions?'<span class="cap">📝 captions</span>':"no captions",
+        "score "+c.score, (c.reasons||[]).map(escapeHtml).join(" · ")
+      ].join(" · ");
+      return `<label class="src">
+        <input type="checkbox" data-src-url="${escapeHtml(c.url)}" data-src-niche="${escapeHtml(nid)}">
+        <span><span class="stitle"><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener">${escapeHtml(c.title)}</a></span>
+        <span class="smeta">${meta}</span></span></label>`;
+    }).join("");
+    return `<div class="nichehead">${name}</div>${rows}`;
+  }).join("");
+  $("discStatus").textContent=`Found ${total} candidate video${total===1?"":"s"} — tick the ones you want clips from.`;
+  box.innerHTML=html+`<button class="bigbtn" id="useSelBtn" style="margin-top:10px">Make clips from selected 🚀</button>`;
+  $("useSelBtn").onclick=useSelected;
+}
+
+async function useSelected(){
+  const checked=[...document.querySelectorAll("#discResults input[type=checkbox]:checked")];
+  if(!checked.length){ alert("Tick at least one video first."); return; }
+  const btn=$("useSelBtn"); btn.disabled=true; btn.textContent="Starting…";
+  let started=0, failed=0;
+  for(const cb of checked.slice(0,5)){
+    try{
+      const r=await fetch("/api/jobs",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({url:cb.dataset.srcUrl, niche_id:cb.dataset.srcNiche,
+          caption_style:CFG.caption_style, max_clips:3})});
+      const j=await r.json();
+      if(j.ok) started++; else failed++;
+    }catch(e){ failed++; }
+  }
+  $("discStatus").textContent=`Started ${started} clip job${started===1?"":"s"}${failed?` (${failed} failed)`:""} — see below. 👇`;
+  btn.disabled=false; btn.textContent="Make clips from selected 🚀";
+  refreshJobs();
+  document.getElementById("jobs").scrollIntoView({behavior:"smooth"});
+}
+
+async function refreshJobs(){
+  // Don't wipe the jobs list while the user is typing stats.
+  if([...document.querySelectorAll(".statsform")].some(f=>f.style.display!=="none")) return;
+  const jobs = await fetch("/api/jobs").then(r=>r.json());
+  const box=$("jobs");
+  if(!jobs.length){ box.innerHTML =
+    `<div class="card"><p class="hint">No clips yet — paste a link above to make your first Shorts. 👆</p></div>`; return; }
+  const html = await Promise.all(jobs.map(async j=>{
+    const full = await fetch("/api/jobs/"+j.id).then(r=>r.json());
+    return jobHtml(full);
+  }));
+  box.innerHTML = html.join("");
+  box.querySelectorAll("[data-approve]").forEach(b=>b.onclick=()=>approve(b));
+  box.querySelectorAll("[data-upload]").forEach(b=>b.onclick=()=>uploadClip(b));
+  box.querySelectorAll("[data-restyle]").forEach(s=>s.onchange=()=>restyle(s));
+  box.querySelectorAll("[data-stats-toggle]").forEach(b=>b.onclick=()=>toggleStats(b));
+  box.querySelectorAll("[data-stats-save]").forEach(b=>b.onclick=()=>saveStats(b));
+}
+
+// ---- analytics ----
+async function refreshAnalytics(){
+  const box=$("analyticsBody");
+  let j;
+  try{ j=await fetch("/api/analytics").then(r=>r.json()); }
+  catch(e){ box.innerHTML=`<div class="err">Couldn't load analytics right now.</div>`; return; }
+  if(!j.ok){ box.innerHTML=`<div class="err">${escapeHtml(j.error||"Couldn't load analytics.")}</div>`; return; }
+  const ins=j.insights, sugs=j.suggestions||[];
+  let h="";
+  if(!ins.has_data){
+    h+=`<p class="hint">${escapeHtml(ins.empty_message)}</p>`;
+  } else {
+    if(ins.niche_ranking.length){
+      h+=`<div class="asub">🏆 Top niches by average views</div>`+
+        ins.niche_ranking.map(r=>`<div class="arow"><span>${escapeHtml(r.niche)}</span><span>${Math.round(r.avg_views).toLocaleString()} avg · ${r.clips} clips</span></div>`).join("");
+    }
+    if(ins.style_leaderboard.length){
+      h+=`<div class="asub">🎨 Caption styles by average views</div>`+
+        ins.style_leaderboard.map(r=>`<div class="arow"><span>${escapeHtml(r.style)}</span><span>${Math.round(r.avg_views).toLocaleString()} avg · ${r.clips} clips</span></div>`).join("");
+    }
+    if(ins.style_comparisons.length){
+      h+=`<div class="asub">⚔️ Style A/B results</div>`+
+        ins.style_comparisons.map(c=>`<div class="note">💡 ${escapeHtml(c)}</div>`).join("");
+    }
+    const cal=ins.score_calibration;
+    h+=`<div class="asub">🎯 Do our scores predict views?</div><div class="note">💡 ${escapeHtml(cal.verdict)}</div>`;
+  }
+  const cst=ins.cost;
+  h+=`<div class="asub">💰 AI cost so far</div>
+    <div class="arow"><span>Clips built</span><span>${cst.total_clips}</span></div>
+    <div class="arow"><span>Est. prompt tokens</span><span>${cst.total_est_prompt_tokens.toLocaleString()}</span></div>
+    <div class="arow"><span>Est. cost</span><span>$${Number(cst.total_est_usd).toFixed(4)}</span></div>
+    <div class="hint" style="margin-top:6px">${escapeHtml(cst.note)}</div>`;
+  if(sugs.length){
+    h+=`<div class="asub">🔧 Tuning suggestions (never auto-applied — you decide)</div>`+
+      sugs.map(s=>`<div class="sugg">🔧 ${escapeHtml(s.suggestion)}<span class="conf">${escapeHtml(s.confidence)} confidence</span><div class="why">${escapeHtml(s.reason)}</div></div>`).join("");
+  }
+  box.innerHTML=h;
+}
+
+function toggleStats(btn){
+  const [jobId, idx]=btn.dataset.statsToggle.split(":");
+  const f=document.getElementById(`stats-${jobId}-${idx}`);
+  f.style.display=f.style.display==="none"?"block":"none";
+}
+
+async function saveStats(btn){
+  const aid=btn.dataset.statsSave;
+  const form=btn.parentElement;
+  const vals={};
+  form.querySelectorAll("[data-sf]").forEach(i=>{ if(i.value.trim()!=="") vals[i.dataset.sf]=i.value.trim(); });
+  const msg=form.querySelector("[data-stats-msg]");
+  if(!Object.keys(vals).length){ msg.textContent="Type at least one number first."; return; }
+  try{
+    const r=await fetch("/api/analytics/stats",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({clip_id:aid,...vals})});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error);
+    msg.textContent="✓ Saved — analytics updated.";
+    refreshAnalytics();
+  }catch(e){ msg.textContent="❌ "+e.message; }
+}
+
+function jobHtml(j){
+  const cls = j.status==="done"?"done":j.status==="failed"?"failed":"";
+  const clips = (j.clips||[]).map(c=>clipHtml(j.id,c)).join("");
+  const notes = (j.notes||[]).map(n=>`<div class="note">💡 ${n}</div>`).join("");
+  const err = j.error?`<div class="err">❌ ${j.error}</div>`:"";
+  const gateName = CFG && CFG.quality_gate>=70 ? "High" : CFG && CFG.quality_gate>=50 ? "Medium" : "Low";
+  const gate = CFG && CFG.mode==="autopilot"
+    ? `<div class="gate-note">🛡️ Quality gate (${gateName}): clips scoring below ${CFG.quality_gate} are auto-skipped in autopilot.</div>` : "";
+  return `<div class="card job ${cls}">
+    <h2 style="font-size:15px;word-break:break-all">${j.url}</h2>
+    <div class="step">${j.step}</div>
+    <div class="pbar"><div style="width:${j.progress}%"></div></div>
+    ${notes}${err}${gate}
+    <div class="clips">${clips}</div></div>`;
+}
+
+function clipHtml(jobId, c){
+  const scls = c.score>=70?"hi":c.score<50?"lo":"";
+  const skip = c.skipped?`<div class="skip">⏭️ Skipped by quality gate (score ${c.score})</div>`:"";
+  const tags = (c.hashtags||[]).map(t=>"#"+t).join(" ");
+  const aid = c.analytics_id||"";
+  const upBtn = c.youtube_id
+    ? `<a class="dl" href="${escapeHtml(c.youtube_url||"")}" target="_blank" rel="noopener">▶ On YouTube</a>`
+    : (UP && UP.connected && !c.skipped
+        ? `<button class="approve" data-upload="${jobId}:${c.index}"${c.uploading?" disabled":""}>${c.uploading?"⏳ Uploading…":"⬆ Upload"}</button>`
+        : "");
+  const upMsg = c.upload_error ? `<div class="err">❌ ${escapeHtml(c.upload_error)}</div>`
+    : (c.upload_note ? `<div class="note">💡 ${escapeHtml(c.upload_note)}</div>` : "");
+  const statsForm = aid?`
+      <button class="restyle" data-stats-toggle="${jobId}:${c.index}">📊 Log views / likes / comments</button>
+      <div class="statsform" id="stats-${jobId}-${c.index}" style="display:none;margin-top:8px">
+        <div class="frow three">
+          <input type="text" inputmode="numeric" placeholder="Views" data-sf="views">
+          <input type="text" inputmode="numeric" placeholder="Likes" data-sf="likes">
+          <input type="text" inputmode="numeric" placeholder="Comments" data-sf="comments">
+        </div>
+        <button class="approve" data-stats-save="${aid}" style="width:100%">Save stats</button>
+        <div class="step" data-stats-msg style="margin-top:6px"></div>
+      </div>`:"";
+  return `<div class="clip">
+    <video src="${c.video}" controls preload="metadata" playsinline></video>
+    <div class="body">
+      <div class="title">${escapeHtml(c.title||"Untitled clip")}</div>
+      <div class="meta"><span class="score ${scls}">score ${c.score}</span>
+        <span class="score">${c.start}s–${c.end}s</span></div>
+      ${c.description?`<div class="desc">${escapeHtml(c.description)}</div>`:""}
+      ${tags?`<div class="tags">${escapeHtml(tags)}</div>`:""}
+      ${skip}
+      <div class="cbtns">
+        <button class="approve${c.approved?" on":""}" data-approve="${jobId}:${c.index}">
+          ${c.approved?"✓ Approved":"Approve"}</button>
+        <a class="dl" href="${c.video}" download>⬇ Download</a>
+        ${upBtn}
+      </div>
+      ${upMsg}
+      <select class="restyle" data-restyle="${jobId}:${c.index}">
+        <option value="">🎨 Change caption style…</option>
+        ${styleOptions(c.style)}
+      </select>
+      ${statsForm}
+    </div></div>`;
+}
+
+let _stylesCache=null;
+function styleOptions(cur){
+  if(!_stylesCache) return "";
+  return _stylesCache.filter(s=>s.id!=="random"&&s.id!==cur)
+    .map(s=>`<option value="${s.id}">${s.id}</option>`).join("");
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,
+  m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+async function approve(btn){
+  const [jobId, idx] = btn.dataset.approve.split(":");
+  await fetch(`/api/jobs/${jobId}/clips/${idx}/approve`,{method:"POST"});
+  refreshJobs();
+}
+async function restyle(sel){
+  if(!sel.value) return;
+  const [jobId, idx] = sel.dataset.restyle.split(":");
+  const r = await fetch(`/api/jobs/${jobId}/clips/${idx}/restyle`,{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({style:sel.value})});
+  const j = await r.json();
+  if(!j.ok) alert(j.error);
+  sel.value="";
+  setTimeout(refreshJobs, 2000);
+}
+
+fetch("/api/styles").then(r=>r.json()).then(s=>_stylesCache=s);
+init();
+</script>
+</body>
+</html>
