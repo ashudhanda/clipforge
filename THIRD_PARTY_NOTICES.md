@@ -1,6 +1,6 @@
-# Third-party notices (ClipForge2 installers)
+# Third-party notices (ClipForge installers)
 
-ClipForge2 itself is MIT-licensed. The one-click installers bundle the
+ClipForge itself is MIT-licensed. The one-click installers bundle the
 following third-party components, fetched at build time (never committed
 to this repo):
 
@@ -11,9 +11,9 @@ to this repo):
   plus [cisco/openh264](https://github.com/cisco/openh264).
 - License: **GNU Lesser General Public License (LGPL)** — the `lgpl`
   builds exclude GPL-only encoders (libx264/x265) and use OpenH264 instead,
-  which is all ClipForge2 needs for Shorts.
-- ClipForge2 runs FFmpeg/ffprobe as **separate processes** (subprocess) —
-  it does not link against them — so the MIT license of ClipForge2's own
+  which is all ClipForge needs for Shorts.
+- ClipForge runs FFmpeg/ffprobe as **separate processes** (subprocess) —
+  it does not link against them — so the MIT license of ClipForge's own
   code is unaffected (mere aggregation).
 - The exact build scripts and source revisions are pinned in
   `packaging/fetch-ffmpeg.sh` / `fetch-ffmpeg.ps1`; LGPL source for the

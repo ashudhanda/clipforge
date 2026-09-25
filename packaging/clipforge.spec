@@ -1,8 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for the ClipForge2 one-click installer.
+"""PyInstaller spec for the ClipForge one-click installer.
 
-Build:  pyinstaller packaging/clipforge2.spec
-Output: dist/ClipForge2/  (onedir; .app bundle added on macOS)
+Build:  pyinstaller packaging/clipforge.spec
+Output: dist/ClipForge/  (onedir; .app bundle added on macOS)
 
 FFmpeg/ffprobe must be in packaging/bin/ first — run
 packaging/fetch-ffmpeg.sh (Linux/macOS) or fetch-ffmpeg.ps1 (Windows).
@@ -64,7 +64,7 @@ exe = EXE(
     pyz,
     a.scripts,
     exclude_binaries=True,
-    name="ClipForge2",
+    name="ClipForge",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -81,15 +81,15 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name="ClipForge2",
+    name="ClipForge",
 )
 
 if sys.platform == "darwin":
     app = BUNDLE(
         coll,
-        name="ClipForge2.app",
+        name="ClipForge.app",
         icon=None,
-        bundle_identifier="tech.aditiweb.clipforge2",
+        bundle_identifier="tech.aditiweb.clipforge",
         info_plist={
             "NSHighResolutionCapable": True,
             "CFBundleShortVersionString": "0.1.0",

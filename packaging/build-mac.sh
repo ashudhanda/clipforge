@@ -12,11 +12,11 @@ ARCH="$(uname -m)"
 if [ "$ARCH" = "arm64" ]; then ./packaging/fetch-ffmpeg.sh macos-arm64
 else ./packaging/fetch-ffmpeg.sh macos-x86_64; fi
 
-pyinstaller packaging/clipforge2.spec
+pyinstaller packaging/clipforge.spec
 
-DMG="dist/ClipForge2-0.1.0.dmg"
+DMG="dist/ClipForge-0.1.0.dmg"
 rm -f "$DMG"
-hdiutil create -volname "ClipForge2" -srcfolder "dist/ClipForge2.app" \
+hdiutil create -volname "ClipForge" -srcfolder "dist/ClipForge.app" \
   -ov -format UDZO "$DMG"
 echo "DONE: $DMG"
 echo "Note: unsigned — first launch needs right-click → Open (Gatekeeper)."

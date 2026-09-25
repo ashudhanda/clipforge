@@ -7,7 +7,7 @@ command -v python3 >/dev/null || { echo "Install Python 3.10+ first"; exit 1; }
 
 python3 -m pip install --quiet -r requirements.txt pyinstaller
 ./packaging/fetch-ffmpeg.sh linux64
-pyinstaller packaging/clipforge2.spec
+pyinstaller packaging/clipforge.spec
 
-tar -czf "dist/ClipForge2-0.1.0-linux64.tar.gz" -C dist ClipForge2
-echo "DONE: dist/ClipForge2-0.1.0-linux64.tar.gz"
+tar -czf "dist/ClipForge-0.1.0-linux64.tar.gz" -C dist ClipForge
+echo "DONE: dist/ClipForge-0.1.0-linux64.tar.gz"

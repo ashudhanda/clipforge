@@ -1,7 +1,7 @@
-# 🎬 ClipForge2
+# 🎬 ClipForge
 
 Turn long YouTube videos into viral Shorts — automatically. Pick a niche, pick a
-caption style, and ClipForge2 finds the best moments, crops to 9:16, adds animated
+caption style, and ClipForge finds the best moments, crops to 9:16, adds animated
 captions, and uploads straight to your channel.
 
 **No server. No monthly cost. Runs on your own computer.**
@@ -54,7 +54,7 @@ python app.py
 
 The dashboard opens by itself at **http://127.0.0.1:5057** 🎉
 
-> 💡 **One-click installers:** Windows (`ClipForge2-Setup.exe`), macOS
+> 💡 **One-click installers:** Windows (`ClipForge-Setup.exe`), macOS
 > (`.dmg`) and Linux (tarball) builds are produced automatically by
 > [build.yml](.github/workflows/build.yml) — grab them from
 > [Releases](https://github.com/ashudhanda/clipforge/releases).
@@ -73,12 +73,12 @@ The dashboard opens by itself at **http://127.0.0.1:5057** 🎉
 
 ## 📤 Connect YouTube (one time, ~5 min)
 
-ClipForge2 uploads via YouTube's official API. Full click-by-click guide:
+ClipForge uploads via YouTube's official API. Full click-by-click guide:
 **[docs/YOUTUBE_SETUP.md](docs/YOUTUBE_SETUP.md)** — no coding, just clicking.
 
 Short version: create a free Google Cloud project → enable YouTube Data API v3 →
 create an OAuth client (Desktop app) → download its JSON → upload it in the
-ClipForge2 dashboard → click **🔗 Connect YouTube** → approve in your browser.
+ClipForge dashboard → click **🔗 Connect YouTube** → approve in your browser.
 
 - Free quota: **100 uploads/day** (YouTube's limit for new apps; uploads stay **private** until your app is verified by Google).
 - Don't want to connect? Use **Manual mode** — build clips here, upload through YouTube Studio yourself. No login needed.
@@ -94,7 +94,7 @@ ClipForge2 dashboard → click **🔗 Connect YouTube** → approve in your brow
 ## 🗂️ Project layout
 
 ```
-clipforge2/
+clipforge/
 ├── app.py              # dashboard + setup wizard (Flask)
 ├── core/
 │   ├── discovery/      # niche video discovery (yt-dlp search)
@@ -110,11 +110,11 @@ clipforge2/
 ```
 
 Your settings and YouTube tokens live **outside** this folder
-(`~/.clipforge2/`) — never commit them.
+(`~/.clipforge/`) — never commit them.
 
 ## ⚠️ Fair-use note
 
-ClipForge2 re-edits third-party videos (commentary, captions, crop). Transformative
+ClipForge re-edits third-party videos (commentary, captions, crop). Transformative
 edits *reduce* but don't eliminate copyright risk — prefer Creative-Commons or
 your own source footage for commercial channels, and always add original commentary.
 
