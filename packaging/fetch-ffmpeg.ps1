@@ -12,8 +12,8 @@ if ($env:GITHUB_TOKEN) { $headers["Authorization"] = "Bearer $($env:GITHUB_TOKEN
 
 Write-Host "-> finding latest BtbN FFmpeg-Builds release..."
 $rel = Invoke-RestMethod -Headers $headers "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest"
-$asset = $rel.assets | Where-Object { $_.name -match "win64-lgpl.*\.zip$" } | Select-Object -First 1
-if (-not $asset) { throw "no matching win64-lgpl asset found" }
+$asset = $rel.assets | Where-Object { $_.name -match "win64-lgpl\.zip$" } | Select-Object -First 1
+if (-not $asset) { throw "no matching win64-lgpl static asset found" }
 
 Write-Host "-> downloading $($asset.name)..."
 Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "package.zip"

@@ -17,19 +17,31 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then AUTH=(-H "Authorization: Bearer $GITHUB_TOKE
 PLATFORM="${1:-linux64}"
 case "$PLATFORM" in
   linux64)
-    ASSET_PAT="linux64-lgpl.*\.tar\.xz$"
     echo "-> finding latest BtbN FFmpeg-Builds release..."
     API="https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest"
-    URL=$(curl -fsSL "${AUTH[@]}" "$API" | grep -oE "\"browser_download_url\": *\"[^\"]*${ASSET_PAT}\"" \
-          | head -1 | cut -d'"' -f4)
-    if [ -z "$URL" ]; then echo "no matching asset found"; exit 1; fi
+    # NOTE: match the *static* (non-shared) build — the -shared variant needs
+    # DLLs/.so files that we do not bundle. Python avoids grep/head SIGPIPE
+    # races under `set -o pipefail`.
+    URL=$(curl -fsSL "${AUTH[@]}" "$API" | python3 -c "
+import json, sys, re
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+for a in data.get('assets', []):
+    n = a.get('name', '')
+    if re.search(r'linux64-lgpl\.tar\.xz$', n):
+        print(a['browser_download_url'])
+        break
+")
+    if [ -z "$URL" ]; then echo "no matching linux64-lgpl asset found"; exit 1; fi
 
     echo "-> downloading $(basename "$URL")..."
     curl -fSL -o package.arc "$URL"
 
     echo "-> extracting ffmpeg + ffprobe..."
     rm -rf stage && mkdir stage
-    tar -xJf package.arc -C stage
+    tar -xJf package.arc --no-same-owner -C stage
     FF=$(find stage -name ffmpeg -type f | head -1)
     FP=$(find stage -name ffprobe -type f | head -1)
     cp "$FF" "$OUT_DIR/ffmpeg"
