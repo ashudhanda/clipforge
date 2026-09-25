@@ -26,6 +26,17 @@ if os.path.isdir(_previews):
 _ICON = os.path.join(ROOT, "packaging", "icon.ico")
 APP_ICON = _ICON if os.path.isfile(_ICON) else None
 
+# --- tzdata: zoneinfo loads it via importlib.resources (no direct import),
+# so PyInstaller's import analysis misses its zone files. Windows has no
+# system tz database — without this the frozen app crashes at startup
+# (ZoneInfoNotFoundError: America/Los_Angeles). Collected explicitly.
+try:
+    from PyInstaller.utils.hooks import collect_data_files
+
+    datas += collect_data_files("tzdata")
+except Exception:
+    pass  # local dev without PyInstaller/tzdata: zoneinfo falls back to system tzdata
+
 # --- bundled binaries (ffmpeg/ffprobe land at the bundle root) --------------
 binaries = []
 bin_dir = os.path.join(ROOT, "packaging", "bin")

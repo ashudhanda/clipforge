@@ -9,3 +9,4 @@ google-api-python-client>=2.100.0  # YouTube Data API upload (Phase 6)
 google-auth-oauthlib>=1.2.0  # OAuth desktop-app flow (Phase 6)
 PySocks>=1.7.0  # httplib2 routes ALL proxy connections through PySocks (even plain HTTP CONNECT proxies)
 certifi>=2024.0  # CA bundle for API TLS (lets MITM egress/corporate proxies validate)
+tzdata>=2024.1  # IANA tz database for zoneinfo — Windows has no system tzdata, frozen app crashes without this
