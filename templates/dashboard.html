@@ -265,7 +265,7 @@
               <div class="row-flex" style="margin-top:6px">
                 <input class="search" id="srcUrl" placeholder="https://www.youtube.com/watch?v=…" style="flex:1;min-width:200px"/>
               </div>
-              <p class="muted" style="font-size:12px;margin:8px 0 0">Already-used videos are never suggested or re-clipped — the repeat guard filters them automatically.</p>
+              <p class="muted" style="font-size:12px;margin:8px 0 0">Fresh videos show up first — if everything new is already used, old picks come back clearly marked “used before”.</p>
             </div>
             <div id="tab-discover" hidden>
               <div class="row-flex">
@@ -275,7 +275,7 @@
               <div class="row-flex" style="margin-top:10px">
                 <span class="guard-chip"><i></i>New videos first</span>
                 <span class="guard-chip"><i></i>Searches rotate every run</span>
-                <span class="guard-chip"><i></i>Used sources skipped</span>
+                <span class="guard-chip"><i></i>Used sources marked</span>
               </div>
               <div id="discResults" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
             </div>
@@ -1225,13 +1225,23 @@ function renderHealth() {
   const items = [];
   const f = (S.meta && S.meta.ffmpeg) || {};
   items.push({ ok: !!f.found, name: "FFmpeg engine", sub: f.found ? "Ready to render" : "Missing — see Settings" });
-  items.push({ ok: true, name: "Video discovery", sub: "Searches YouTube, skips used sources" });
+  items.push({ ok: true, name: "Video discovery", sub: "Searches YouTube — fresh first, used ones marked" });
   const llm = S.llm;
   if (llm) {
     const prov = (llm.active && llm.active.provider) || "offline";
-    items.push({ ok: prov !== "offline", name: "AI moment ranker", sub: prov === "offline" ? "Offline detector (no key)" : "Active: " + prov + (llm.active.model ? " · " + llm.active.model : "") });
+    const lc = llm.last_call || {};
+    let ok = prov !== "offline", sub;
+    if (prov === "offline") {
+      sub = "Offline detector (no key)";
+    } else if (lc.ok === false) {
+      ok = false;
+      sub = "Failing: " + String(lc.error || "unknown error").slice(0, 90);
+    } else {
+      sub = "Active: " + prov + (llm.active.model ? " · " + llm.active.model : "");
+    }
+    items.push({ ok, name: "AI moment ranker", sub });
   }
-  items.push({ ok: true, name: "Repeat guard", sub: "Already-used videos are never re-clipped" });
+  items.push({ ok: true, name: "Repeat guard", sub: "Used-before videos are shown, marked clearly" });
   const yt = S.yt;
   items.push({ ok: !!(yt && yt.connected), name: "YouTube", sub: yt ? (yt.connected ? "Connected" + (yt.channel ? " · " + yt.channel : "") : "Not connected") : "…" });
   for (const it of items) {
@@ -1550,6 +1560,24 @@ function renderLLM() {
   };
   mkRow("", "Automatic (recommended)", "Uses the provider's default model order");
   for (const m of models) mkRow(m, m, prov === "gemini" ? "Gemini model" : "OpenAI model");
+  // custom model id (e.g. the exact id from AI Studio when Google renames models)
+  const customWrap = document.createElement("div");
+  customWrap.style.cssText = "display:flex;gap:8px;margin-top:10px";
+  customWrap.innerHTML = '<input class="search" id="llmCustomModel" placeholder="Custom model id (e.g. from AI Studio)" style="flex:1" value="' + esc(l.model && models.indexOf(l.model) < 0 ? l.model : "") + '"/>';
+  const customBtn = document.createElement("button");
+  customBtn.className = "btn btn-secondary btn-small";
+  customBtn.textContent = "Use custom";
+  customBtn.addEventListener("click", async () => {
+    const id = $("llmCustomModel").value.trim();
+    if (!id) { toast("Type a model id first"); return; }
+    try {
+      await post("/api/llm", { provider: $("llmProv").value, model: id });
+      toast("Custom model saved: " + id);
+      await loadLLM();
+    } catch (e) { toast("Couldn't save model: " + e.message); }
+  });
+  customWrap.appendChild(customBtn);
+  box.appendChild(customWrap);
   const active = l.active || {};
   $("activeModelNote").textContent = active.provider && active.provider !== "offline"
     ? "Active right now: " + active.provider + (active.model ? " · " + active.model : "")

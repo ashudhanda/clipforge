@@ -262,6 +262,34 @@ def test_discover_empty_results():
     assert cands == []
 
 
+def test_discover_fallback_skipped_when_searches_fail():
+    # Network failure (every query raises): the reuse fallback must NOT run
+    # a second identical pass — that would just double the wait on a dead
+    # network. (Regression: Ashu's 10-minute spinner, 2026-09-26.)
+    qs = build_queries("ai-news")[:3]
+    inner = make_factory(fail_queries=set(qs))
+    calls = []
+
+    def counting_factory(opts):
+        ydl = inner(opts)
+        orig = ydl.extract_info
+
+        def counted(url, download=False):
+            calls.append(url)
+            return orig(url, download=download)
+
+        ydl.extract_info = counted
+        return ydl
+
+    cands = discover_sources(["ai-news"], per_niche=3,
+                             ydl_factory=counting_factory, now=NOW)
+    assert cands == []
+    search_calls = [u for u in calls if "ytsearch" in u]
+    assert len(search_calls) == 3, (
+        "failed searches must not be re-run by the fallback, "
+        f"saw {len(search_calls)} search calls")
+
+
 def test_discover_empty_niches():
     assert discover_sources([], ydl_factory=make_factory(), now=NOW) == []
 
@@ -297,3 +325,58 @@ def test_seen_store_default_path_uses_config_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
     s = SeenStore()
     assert str(s.path).endswith(".clipforge/seen.json")
+
+
+# ---------------------------------------------------------------------------
+# parallelism (2026-09-26: discovery was taking 10+ minutes sequentially)
+# ---------------------------------------------------------------------------
+
+def test_info_fetches_run_in_parallel():
+    """Watch-page fetches must overlap — sequential fetching is what made a
+    single discovery run take 10+ minutes under YouTube throttling."""
+    import threading
+    import time as _time
+
+    active = 0
+    peak = 0
+    lock = threading.Lock()
+
+    class SlowYDL(FakeYDL):
+        def extract_info(self, url, download=False):
+            nonlocal active, peak
+            if "ytsearch" in url:
+                return _flat(*list(INFOS))
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            _time.sleep(0.05)
+            with lock:
+                active -= 1
+            return super().extract_info(url, download=download)
+
+    def factory(opts):
+        return SlowYDL(opts, ids=list(INFOS), fail_queries=set(),
+                       fail_vids=set())
+
+    cands = discover_sources(["gta6-breakdowns"], per_niche=3,
+                             ydl_factory=factory, now=NOW)
+    assert len(cands) == 3
+    assert peak > 1, f"info fetches ran sequentially (peak={peak})"
+
+
+def test_parallel_search_failure_does_not_kill_siblings():
+    """One failing query among parallel searches still leaves the others."""
+    cands = discover_sources(
+        ["gta6-breakdowns"], per_niche=3, max_queries=3,
+        ydl_factory=make_factory(fail_queries={"GTA 6 new details explained"}),
+        now=NOW)
+    # 2 of 3 queries succeeded; candidates still found
+    assert len(cands) == 3
+
+
+def test_parallel_results_stay_deterministic():
+    """executor.map preserves order — two runs return identical ordering."""
+    kw = dict(per_niche=3, ydl_factory=make_factory(), now=NOW)
+    first = [c["video_id"] for c in discover_sources(["gta6-breakdowns"], **kw)]
+    second = [c["video_id"] for c in discover_sources(["gta6-breakdowns"], **kw)]
+    assert first == second

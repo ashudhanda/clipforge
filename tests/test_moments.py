@@ -17,6 +17,7 @@ from core.moments.llm import (
     OpenAIProvider,
     _parse_json_strict,
     estimate_tokens,
+    get_last_call,
     score_moments,
 )
 from core.moments.llm import LLMProvider
@@ -162,6 +163,125 @@ def test_score_moments_returns_clips_list():
 def test_score_moments_rejects_missing_clips_key():
     with pytest.raises(LLMError):
         score_moments("text", "rubric", 1, provider=FakeProvider({"nope": 1}))
+
+
+def test_score_moments_records_last_call_success():
+    # Honest health: a good call is recorded for the dashboard.
+    score_moments("text", "rubric", 1, provider=FakeProvider({"clips": []}))
+    lc = get_last_call()
+    assert lc["ok"] is True
+    assert lc["provider"] == "fake"
+    assert lc["error"] is None
+    assert lc["at"] is not None
+
+
+def test_score_moments_records_last_call_failure():
+    # Honest health: a 404-dead provider must not keep showing "Active".
+    with pytest.raises(LLMError):
+        score_moments("text", "rubric", 1,
+                      provider=FakeProvider(exc=LLMError("LLM HTTP 404: gone")))
+    lc = get_last_call()
+    assert lc["ok"] is False
+    assert "404" in (lc["error"] or "")
+    assert lc["provider"] == "fake"
+
+
+def test_get_last_call_returns_copy():
+    get_last_call()["ok"] = "tampered"
+    assert get_last_call()["ok"] != "tampered"
+
+
+def test_gemini_discovery_heals_stale_model_names(monkeypatch):
+    # All pinned models 404 -> provider discovers a live flash model via
+    # v1beta/models and retries with it instead of dying. (Regression:
+    # the 2026-09-26 404 wave on gemini-2.5/2.0/1.5-flash.)
+    import core.moments.llm as llm_mod
+    llm_mod._discovered_gemini_model.clear()
+    models_payload = {"models": [
+        {"name": "models/gemini-3.8-flash",
+         "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-pro-vision",
+         "supportedGenerationMethods": ["generateContent"]},  # no "flash"
+        {"name": "models/embedding-001",
+         "supportedGenerationMethods": ["embedContent"]},  # wrong method
+    ]}
+    calls = []
+
+    def fake_post(url, payload, headers):
+        calls.append(url)
+        if "gemini-3.8-flash" in url:
+            return {"candidates": [{"content": {"parts": [{"text": '{"clips": []}'}]}}]}
+        raise LLMError("LLM HTTP 404: model not found")
+
+    monkeypatch.setattr("core.moments.llm._post_json", fake_post)
+    monkeypatch.setattr("core.moments.llm._get_json", lambda url: models_payload)
+    p = GeminiProvider(api_key="k", models=["dead-a", "dead-b"])
+    parsed, usage = p.generate_json("sys", "usr")
+    assert parsed == {"clips": []}
+    assert usage["model"] == "gemini-3.8-flash"
+    assert any("gemini-3.8-flash" in u for u in calls)
+
+
+def test_gemini_discovery_returns_none_without_flash(monkeypatch):
+    import core.moments.llm as llm_mod
+    llm_mod._discovered_gemini_model.clear()
+    monkeypatch.setattr("core.moments.llm._get_json", lambda url: {"models": [
+        {"name": "models/embedding-001",
+         "supportedGenerationMethods": ["embedContent"]}]})
+    assert llm_mod._discover_gemini_flash_model("k") is None
+
+
+def test_gemini_discovery_cached_per_key(monkeypatch):
+    import core.moments.llm as llm_mod
+    llm_mod._discovered_gemini_model.clear()
+    hits = []
+
+    def fake_get(url):
+        hits.append(url)
+        return {"models": [{"name": "models/gemini-x-flash",
+                            "supportedGenerationMethods": ["generateContent"]}]}
+
+    monkeypatch.setattr("core.moments.llm._get_json", fake_get)
+    assert llm_mod._discover_gemini_flash_model("k1") == "gemini-x-flash"
+    assert llm_mod._discover_gemini_flash_model("k1") == "gemini-x-flash"
+    assert len(hits) == 1  # second call served from cache
+
+
+def test_gemini_discovery_failure_keeps_honest_404(monkeypatch):
+    # Discovery itself fails -> the original honest error surfaces, no fake.
+    import core.moments.llm as llm_mod
+    llm_mod._discovered_gemini_model.clear()
+
+    def boom_post(url, payload, headers):
+        raise LLMError("LLM HTTP 404: gone")
+
+    def boom_get(url):
+        raise LLMError("LLM HTTP 403: bad key")
+
+    monkeypatch.setattr("core.moments.llm._post_json", boom_post)
+    monkeypatch.setattr("core.moments.llm._get_json", boom_get)
+    p = GeminiProvider(api_key="k", models=["dead"])
+    with pytest.raises(LLMError, match="all gemini models failed"):
+        p.generate_json("sys", "usr")
+
+
+def test_gemini_single_pinned_model_404_triggers_discovery(monkeypatch):
+    # A single dashboard-pinned model that 404s must also reach discovery
+    # (previously only multi-model lists fell through).
+    import core.moments.llm as llm_mod
+    llm_mod._discovered_gemini_model.clear()
+    monkeypatch.setattr(
+        "core.moments.llm._post_json",
+        lambda url, payload, headers: (
+            {"candidates": [{"content": {"parts": [{"text": '{"clips": []}'}]}}]}
+            if "gemini-live-flash" in url
+            else (_ for _ in ()).throw(LLMError("LLM HTTP 404: gone"))))
+    monkeypatch.setattr("core.moments.llm._get_json", lambda url: {"models": [
+        {"name": "models/gemini-live-flash",
+         "supportedGenerationMethods": ["generateContent"]}]})
+    p = GeminiProvider(api_key="k", models=["gemini-stale-flash"])
+    parsed, usage = p.generate_json("sys", "usr")
+    assert usage["model"] == "gemini-live-flash"
 
 
 def test_estimate_tokens_positive():

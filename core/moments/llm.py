@@ -57,6 +57,26 @@ _MAX_ATTEMPTS = 3
 _RETRY_BACKOFF_S = (1.0, 2.0)  # sleeps before attempt 2 and 3
 
 
+# --- Last-call health --------------------------------------------------------
+# score_moments records every call outcome here so the dashboard's "AI brain"
+# health reflects reality (last real call), not just config ("a key is set").
+# Shape: {"ok": bool|None, "error": str|None, "provider": str|None,
+#         "model": str|None, "at": float|None}. "ok" is None until the first
+# call in this process.
+_last_call = {"ok": None, "error": None, "provider": None, "model": None,
+              "at": None}
+
+
+def _record_call(provider_name, model, ok, error=None):
+    _last_call.update({"ok": ok, "error": error, "provider": provider_name,
+                       "model": model, "at": time.time()})
+
+
+def get_last_call() -> dict:
+    """Last score_moments outcome (copy) — for honest health display."""
+    return dict(_last_call)
+
+
 def estimate_tokens(text: str) -> int:
     """Rough token estimate (~4 chars/token). Used for the cost guard log."""
     return max(1, len(text) // 4)
@@ -111,6 +131,72 @@ def _post_json(url: str, payload: dict, headers: dict) -> dict:
             ) from e
     # Unreachable: the loop always returns or raises.
     raise LLMError(f"LLM request failed after {_MAX_ATTEMPTS} attempts")
+
+
+def _get_json(url: str) -> dict:
+    """Single-attempt GET returning parsed JSON. Raises LLMError on failure."""
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")[:200]
+        raise LLMError(f"LLM HTTP {e.code}: {body}") from e
+    except (urllib.error.URLError, TimeoutError, OSError,
+            http.client.HTTPException) as e:
+        raise LLMError(f"LLM network error: {e}") from e
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        raise LLMError(f"LLM returned a non-JSON response body: {e}") from e
+
+
+# --- Gemini model auto-discovery ---------------------------------------------
+# Hardcoded model names go stale (Google renames/retires them — that's the
+# 404 wave of 2026-09-26). When every pinned model 404s, we ask the API which
+# models actually exist for this key instead of guessing new names.
+_discovered_gemini_model: dict[str, str] = {}
+
+
+def _discover_gemini_flash_model(api_key: str) -> str | None:
+    """Return a generateContent-capable *flash* model id for this key.
+
+    Cached per key for the process lifetime. Never logs the key.
+    Returns None when discovery itself fails (caller keeps the honest 404).
+    """
+    if api_key in _discovered_gemini_model:
+        return _discovered_gemini_model[api_key]
+    try:
+        data = _get_json(
+            "https://generativelanguage.googleapis.com/v1beta/models"
+            f"?key={api_key}"
+        )
+    except LLMError as e:
+        log.warning("gemini model discovery failed: %s", e)
+        return None
+    cands: list[str] = []
+    for m in (data.get("models") or []):
+        if not isinstance(m, dict):
+            continue
+        name = str(m.get("name", "")).replace("models/", "")
+        methods = m.get("supportedGenerationMethods") or []
+        if "generateContent" in methods and "flash" in name.lower():
+            cands.append(name)
+    if not cands:
+        log.warning("gemini model discovery: no flash model supports "
+                    "generateContent for this key")
+        return None
+    # Prefer stable names over preview/experimental ones, then shortest.
+    def _rank(n: str) -> tuple[int, int]:
+        low = n.lower()
+        unstable = 1 if any(t in low for t in
+                            ("preview", "exp", "beta", "thinking")) else 0
+        return (unstable, len(n))
+    best = sorted(cands, key=_rank)[0]
+    log.warning("gemini: pinned models 404'd; discovered working model %s",
+                best)
+    _discovered_gemini_model[api_key] = best
+    return best
 
 
 class LLMProvider(abc.ABC):
@@ -195,12 +281,29 @@ class GeminiProvider(LLMProvider):
                     "est_prompt_tokens": estimate_tokens(system + user),
                 }
             except LLMError as e:
-                # Model renamed/retired -> fall through to the next candidate.
-                if "404" in str(e) and len(self.models) > 1:
+                # Model renamed/retired -> fall through to the next candidate
+                # (or to auto-discovery when the list is exhausted).
+                if "404" in str(e):
                     log.warning("gemini model %s unavailable, trying next", model)
                     last_err = e
                     continue
                 raise
+        if last_err is not None and "404" in str(last_err):
+            # Every pinned model 404'd: the hardcoded names are stale for this
+            # key/project. Discover what actually exists instead of guessing.
+            discovered = _discover_gemini_flash_model(self.api_key)
+            if discovered:
+                url = (
+                    "https://generativelanguage.googleapis.com/v1beta/models/"
+                    f"{discovered}:generateContent?key={self.api_key}"
+                )
+                resp = _post_json(url, payload, headers)
+                text = _gemini_text(resp)
+                return _parse_json_strict(text), {
+                    "provider": self.name,
+                    "model": discovered,
+                    "est_prompt_tokens": estimate_tokens(system + user),
+                }
         raise LLMError(f"all gemini models failed; last error: {last_err}")
 
     def __repr__(self) -> str:  # pragma: no cover - trivial
@@ -298,7 +401,10 @@ def get_provider(prefer: str | None = None) -> LLMProvider:
     pin = (stored.get("model") or "").strip() or None
 
     def _with_pin(defaults: list[str]) -> list[str]:
-        if pin and pin in defaults:
+        # A dashboard/env-picked model always goes first — even a custom id
+        # the hardcoded defaults don't know about. Provider defaults stay as
+        # fallbacks; auto-discovery heals stale names at call time.
+        if pin:
             return [pin] + [m for m in defaults if m != pin]
         return list(defaults)
 
@@ -356,9 +462,16 @@ def score_moments(
         estimate_tokens(system + user),
         n,
     )
-    parsed, usage = provider.generate_json(system, user)
+    try:
+        parsed, usage = provider.generate_json(system, user)
+    except LLMError as e:
+        _record_call(provider.name, None, False, str(e)[:200])
+        raise
     if not isinstance(parsed, dict) or not isinstance(parsed.get("clips"), list):
+        _record_call(provider.name, None, False,
+                     "LLM JSON did not contain a 'clips' list")
         raise LLMError(
             "LLM JSON did not contain a 'clips' list — refusing to guess"
         )
+    _record_call(provider.name, usage.get("model"), True)
     return parsed["clips"], usage

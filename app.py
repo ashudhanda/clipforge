@@ -507,6 +507,9 @@ def api_llm_status():
             "openai": list(llm_mod.DEFAULT_OPENAI_MODELS),
         },
         "active": active,
+        # Honest health: outcome of the last real LLM call in this process
+        # (ok=null until the first call), not just "a key is configured".
+        "last_call": llm_mod.get_last_call(),
     })
 
 
@@ -516,7 +519,9 @@ def api_llm_save():
 
     Blank fields PRESERVE the already-stored key — they never wipe it.
     To forget a key, use POST /api/llm/forget with {"which": "gemini"|"openai"}.
-    Accepts an optional "model" (a known model id, or "" for provider default).
+    Accepts an optional "model" (any model id string, or "" for automatic).
+    Custom ids are passed straight to the provider — the provider validates
+    at call time and the dashboard shows the real outcome.
     """
     data = request.get_json(force=True) or {}
     try:
@@ -529,9 +534,6 @@ def api_llm_save():
             openai_key = stored["openai_key"]
         if "model" in data:
             model = str(data.get("model", "") or "").strip()
-            known = list(llm_mod.DEFAULT_GEMINI_MODELS) + list(llm_mod.DEFAULT_OPENAI_MODELS)
-            if model and model not in known:
-                return jsonify({"ok": False, "error": "Unknown model id."}), 400
         else:
             model = stored.get("model", "")
         llm_keys_mod.save_keys(

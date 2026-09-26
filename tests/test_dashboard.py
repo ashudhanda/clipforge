@@ -510,10 +510,15 @@ def test_llm_model_save_and_status_roundtrip(client):
     assert client.get("/api/llm").get_json()["model"] == ""
 
 
-def test_llm_model_rejects_unknown_id(client):
-    r = client.post("/api/llm", json={"model": "gpt-99-turbo"})
-    assert r.status_code == 400
-    assert r.get_json()["ok"] is False
+def test_llm_model_accepts_custom_id(client):
+    # Custom model ids (e.g. fresh names from AI Studio after Google renames
+    # models) are accepted and passed to the provider; call-time validates
+    # and the dashboard shows the real outcome via last_call.
+    r = client.post("/api/llm", json={"model": "gemini-3.8-flash"})
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    assert client.get("/api/llm").get_json()["model"] == "gemini-3.8-flash"
+    client.post("/api/llm", json={"model": ""})  # reset
 
 
 def test_llm_model_pin_reorders_provider_models(cfg_home, monkeypatch):

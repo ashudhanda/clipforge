@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import math
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
 
 from yt_dlp import YoutubeDL
@@ -34,6 +35,10 @@ MIN_DURATION = 60        # hard skip: anything shorter is a Short / too short
 PREFERRED_DURATION = 480  # 8+ minutes is ideal long-form for clipping
 SEARCH_RESULTS = 10      # ytsearchN per query
 INFO_FETCH_MULTIPLIER = 3  # fetch full info for per_niche * this many
+# Parallelism: flat searches and info fetches are independent network calls,
+# so they run together. Kept small on purpose — YouTube throttles hammering.
+SEARCH_WORKERS = 3       # one per query is plenty
+INFO_WORKERS = 4         # watch-page fetches are the slow part
 
 # Default query templates. {name} = niche display name (or custom niche text).
 QUERY_TEMPLATES: tuple[str, ...] = (
@@ -121,6 +126,26 @@ def _video_info(ydl_factory: Callable[[dict], YoutubeDL],
     with ydl_factory(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     return info if isinstance(info, dict) else None
+
+
+def _safe_flat_search(ydl_factory: Callable[[dict], YoutubeDL],
+                      query: str) -> list[dict]:
+    """_flat_search that never raises (429 / bot-check / network — non-fatal)."""
+    try:
+        return _flat_search(ydl_factory, query)
+    except Exception as exc:
+        log.warning("discovery search failed for %r: %s", query, exc)
+        return []
+
+
+def _safe_video_info(ydl_factory: Callable[[dict], YoutubeDL],
+                     video_id: str) -> Optional[dict]:
+    """_video_info that never raises — same non-fatal policy as search."""
+    try:
+        return _video_info(ydl_factory, video_id)
+    except Exception as exc:
+        log.warning("discovery info fetch failed for %s: %s", video_id, exc)
+        return None
 
 
 def _has_captions(info: dict) -> bool:
@@ -241,49 +266,67 @@ def _discover_niche(ydl_factory: Callable[[dict], YoutubeDL],
                    custom_niche: str,
                    is_seen,
                    skip_seen: bool,
-                   now: Optional[float]) -> list[dict]:
+                   now: Optional[float]) -> tuple[list[dict], int]:
     """One niche: search, fetch info, filter, rank. Pure discovery step.
 
     ``skip_seen`` controls whether videos already in the seen-store are
     skipped (fresh pass) or kept (reuse fallback pass).
+
+    Returns ``(candidates, seen_skipped)`` — ``seen_skipped`` counts videos
+    dropped *specifically* because they were already seen. Callers use it to
+    tell "everything found was already used" (worth a reuse pass) apart from
+    "searches failed / nothing found" (a second identical pass would only
+    double the wait).
     """
     queries = build_queries(niche_id, custom_niche)[:max_queries]
     flat_ids: list[str] = []
     seen_ids: set[str] = set()
-    for q in queries:
-        try:
-            entries = _flat_search(ydl_factory, q)
-        except Exception as exc:  # 429 / bot-check / network — non-fatal
-            log.warning("discovery search failed for %r: %s", q, exc)
-            continue
+    # Flat searches are independent network calls — run them together.
+    # executor.map preserves order, so candidate order stays deterministic.
+    if queries:
+        with ThreadPoolExecutor(
+                max_workers=min(len(queries), SEARCH_WORKERS)) as ex:
+            search_results = list(
+                ex.map(lambda q: _safe_flat_search(ydl_factory, q), queries))
+    else:
+        search_results = []
+    for entries in search_results:
         for e in entries:
             vid = extract_video_id(str(e.get("id") or "")) or str(e.get("id"))
             if vid and vid not in seen_ids:
                 seen_ids.add(vid)
                 flat_ids.append(vid)
 
-    # Full info for the most promising flat IDs (captions need it).
-    infos: list[dict] = []
+    # Full info fetches are the slow part (one watch-page per video) — run
+    # them together too. Each call builds its own YoutubeDL, so threads are
+    # independent; map order keeps everything deterministic.
+    fetch_ids: list[str] = []
+    seen_skipped = 0
     for vid in flat_ids[: max(1, per_niche * INFO_FETCH_MULTIPLIER)]:
         if skip_seen and is_seen(vid):
+            seen_skipped += 1
             continue
-        try:
-            info = _video_info(ydl_factory, vid)
-        except Exception as exc:  # non-fatal, same as above
-            log.warning("discovery info fetch failed for %s: %s", vid, exc)
-            continue
-        if not info:
-            continue
-        skip_reason = _passes_filters(info)
-        if skip_reason:
-            log.debug("discovery skipping %s: %s", vid, skip_reason)
-            continue
-        infos.append(info)
+        fetch_ids.append(vid)
+    infos: list[dict] = []
+    if fetch_ids:
+        with ThreadPoolExecutor(
+                max_workers=min(len(fetch_ids), INFO_WORKERS)) as ex:
+            fetched = list(ex.map(
+                lambda v: _safe_video_info(ydl_factory, v), fetch_ids))
+        for vid, info in zip(fetch_ids, fetched):
+            if not info:
+                continue
+            skip_reason = _passes_filters(info)
+            if skip_reason:
+                log.debug("discovery skipping %s: %s", vid, skip_reason)
+                continue
+            infos.append(info)
 
-    return sorted(
+    candidates = sorted(
         (_candidate_from_info(i, niche_id, now=now) for i in infos),
         key=lambda c: c["score"], reverse=True,
     )[:per_niche]
+    return candidates, seen_skipped
 
 
 def discover_sources(niches: list[str],
@@ -312,13 +355,16 @@ def discover_sources(niches: list[str],
     candidates: list[dict] = []
 
     for niche_id in niches or []:
-        niche_cands = _discover_niche(
+        niche_cands, seen_skipped = _discover_niche(
             factory, niche_id, per_niche=per_niche, max_queries=max_queries,
             custom_niche=custom_niche, is_seen=is_seen, skip_seen=True,
             now=now)
-        if not niche_cands:
-            # Fallback: reuse is acceptable, an empty list is not.
-            niche_cands = _discover_niche(
+        if not niche_cands and seen_skipped:
+            # Reuse fallback: the fresh pass found videos, but every one was
+            # already used — show them marked seen_before=True instead of [].
+            # (When the fresh pass found nothing because searches failed,
+            # a second identical pass would just double the wait — skip it.)
+            niche_cands, _ = _discover_niche(
                 factory, niche_id, per_niche=per_niche, max_queries=max_queries,
                 custom_niche=custom_niche, is_seen=is_seen, skip_seen=False,
                 now=now)

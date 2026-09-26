@@ -5,4 +5,4 @@ installer (via /DAppVersion from CI), and the dashboard all read this —
 never hardcode the version anywhere else.
 """
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
