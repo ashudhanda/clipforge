@@ -210,6 +210,32 @@ def test_discover_skips_seen(tmp_path):
     ids = [c["video_id"] for c in cands]
     assert "vidAAA11111" not in ids
     assert "vidGGG77777" in ids
+    assert not any(c.get("seen_before") for c in cands)
+
+
+def test_discover_fallback_shows_seen_when_nothing_fresh(tmp_path):
+    # Ashu's call (2026-09-26): reuse is acceptable, an empty list is not.
+    # When every candidate is already in the seen-store, the fallback
+    # returns them marked seen_before=True instead of [].
+    seen = SeenStore(path=tmp_path / "seen.json")
+    seen._data = {vid: {"niche": "ai-news"}
+                  for vid in ("vidAAA11111", "vidBBB22222", "vidGGG77777")}
+    seen._loaded = True
+    cands = discover_sources(["ai-news"], per_niche=5, seen=seen,
+                             ydl_factory=make_factory(), now=NOW)
+    assert cands, "fallback must show something, not an empty list"
+    assert all(c.get("seen_before") is True for c in cands)
+    ids = [c["video_id"] for c in cands]
+    assert "vidAAA11111" in ids  # hard filters still apply to reused videos
+    assert "vidCCC33333" not in ids  # shorts stay filtered even in fallback
+
+
+def test_discover_fallback_empty_when_search_fails():
+    # Fallback can't conjure results: if the search itself fails everywhere,
+    # we still return [] (honest empty, not fake data).
+    cands = discover_sources(["ai-news"], per_niche=3,
+                             ydl_factory=make_factory(ids=[]), now=NOW)
+    assert cands == []
 
 
 def test_discover_throttled_query_is_nonfatal():

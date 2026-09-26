@@ -234,6 +234,58 @@ def _fmt_duration(dur) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
+def _discover_niche(ydl_factory: Callable[[dict], YoutubeDL],
+                   niche_id: str,
+                   per_niche: int,
+                   max_queries: int,
+                   custom_niche: str,
+                   is_seen,
+                   skip_seen: bool,
+                   now: Optional[float]) -> list[dict]:
+    """One niche: search, fetch info, filter, rank. Pure discovery step.
+
+    ``skip_seen`` controls whether videos already in the seen-store are
+    skipped (fresh pass) or kept (reuse fallback pass).
+    """
+    queries = build_queries(niche_id, custom_niche)[:max_queries]
+    flat_ids: list[str] = []
+    seen_ids: set[str] = set()
+    for q in queries:
+        try:
+            entries = _flat_search(ydl_factory, q)
+        except Exception as exc:  # 429 / bot-check / network — non-fatal
+            log.warning("discovery search failed for %r: %s", q, exc)
+            continue
+        for e in entries:
+            vid = extract_video_id(str(e.get("id") or "")) or str(e.get("id"))
+            if vid and vid not in seen_ids:
+                seen_ids.add(vid)
+                flat_ids.append(vid)
+
+    # Full info for the most promising flat IDs (captions need it).
+    infos: list[dict] = []
+    for vid in flat_ids[: max(1, per_niche * INFO_FETCH_MULTIPLIER)]:
+        if skip_seen and is_seen(vid):
+            continue
+        try:
+            info = _video_info(ydl_factory, vid)
+        except Exception as exc:  # non-fatal, same as above
+            log.warning("discovery info fetch failed for %s: %s", vid, exc)
+            continue
+        if not info:
+            continue
+        skip_reason = _passes_filters(info)
+        if skip_reason:
+            log.debug("discovery skipping %s: %s", vid, skip_reason)
+            continue
+        infos.append(info)
+
+    return sorted(
+        (_candidate_from_info(i, niche_id, now=now) for i in infos),
+        key=lambda c: c["score"], reverse=True,
+    )[:per_niche]
+
+
 def discover_sources(niches: list[str],
                      per_niche: int = 3,
                      max_queries: int = 3,
@@ -248,49 +300,30 @@ def discover_sources(niches: list[str],
     ``seen``: optional object with ``is_seen(video_id) -> bool`` (e.g.
     :class:`core.discovery.seen.SeenStore`). ``ydl_factory`` is injectable
     for tests (mocked yt-dlp, zero network).
+
+    Reuse fallback: when a niche yields zero *fresh* candidates (everything
+    found was already processed), we do a second pass *without* the
+    seen-filter and return those videos marked ``seen_before=True``.
+    Showing a previously-used video beats showing nothing — the UI marks
+    them so the user can decide.
     """
     factory = ydl_factory or _ydl_factory_default
     is_seen = getattr(seen, "is_seen", None) or (lambda _vid: False)
     candidates: list[dict] = []
-    seen_ids: set[str] = set()
 
     for niche_id in niches or []:
-        queries = build_queries(niche_id, custom_niche)[:max_queries]
-        flat_ids: list[str] = []
-        for q in queries:
-            try:
-                entries = _flat_search(factory, q)
-            except Exception as exc:  # 429 / bot-check / network — non-fatal
-                log.warning("discovery search failed for %r: %s", q, exc)
-                continue
-            for e in entries:
-                vid = extract_video_id(str(e.get("id") or "")) or str(e.get("id"))
-                if vid and vid not in seen_ids:
-                    seen_ids.add(vid)
-                    flat_ids.append(vid)
-
-        # Full info for the most promising flat IDs (captions need it).
-        infos: list[dict] = []
-        for vid in flat_ids[: max(1, per_niche * INFO_FETCH_MULTIPLIER)]:
-            if is_seen(vid):
-                continue
-            try:
-                info = _video_info(factory, vid)
-            except Exception as exc:  # non-fatal, same as above
-                log.warning("discovery info fetch failed for %s: %s", vid, exc)
-                continue
-            if not info:
-                continue
-            skip_reason = _passes_filters(info)
-            if skip_reason:
-                log.debug("discovery skipping %s: %s", vid, skip_reason)
-                continue
-            infos.append(info)
-
-        niche_cands = sorted(
-            (_candidate_from_info(i, niche_id, now=now) for i in infos),
-            key=lambda c: c["score"], reverse=True,
-        )[:per_niche]
+        niche_cands = _discover_niche(
+            factory, niche_id, per_niche=per_niche, max_queries=max_queries,
+            custom_niche=custom_niche, is_seen=is_seen, skip_seen=True,
+            now=now)
+        if not niche_cands:
+            # Fallback: reuse is acceptable, an empty list is not.
+            niche_cands = _discover_niche(
+                factory, niche_id, per_niche=per_niche, max_queries=max_queries,
+                custom_niche=custom_niche, is_seen=is_seen, skip_seen=False,
+                now=now)
+            for c in niche_cands:
+                c["seen_before"] = True
         candidates.extend(niche_cands)
 
     candidates.sort(key=lambda c: c["score"], reverse=True)

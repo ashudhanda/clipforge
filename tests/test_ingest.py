@@ -142,7 +142,42 @@ def test_discover_impersonation_picks_newest_chrome(monkeypatch):
 
     monkeypatch.setattr(ytdlp_helper, "YoutubeDL", FakeYDL)
     try:
-        assert ytdlp_helper.discover_impersonation() == "chrome-150"
+        target = ytdlp_helper.discover_impersonation()
+        assert isinstance(target, ImpersonateTarget)
+        assert (target.client, target.version) == ("chrome", "150")
+    finally:
+        ytdlp_helper.discover_impersonation.cache_clear()
+
+
+def test_base_opts_impersonate_is_target_not_str():
+    """Regression: v0.1.7 passed a *string* as opts['impersonate'].
+
+    YoutubeDL.__init__ feeds the raw param into is_supported_target(),
+    which asserts isinstance(target, ImpersonateTarget) — a string crashed
+    EVERY download with a bare AssertionError. The opt must be the object.
+    """
+    from yt_dlp.networking.impersonate import ImpersonateTarget
+
+    ytdlp_helper.discover_impersonation.cache_clear()
+    try:
+        opts = ytdlp_helper.base_opts()
+    finally:
+        ytdlp_helper.discover_impersonation.cache_clear()
+    imp = opts.get("impersonate")
+    assert imp is None or isinstance(imp, ImpersonateTarget), (
+        f"opts['impersonate'] must be ImpersonateTarget or None, got {type(imp)}")
+
+
+def test_ytdl_constructs_with_base_opts():
+    """End-to-end guard for the v0.1.7 crash: YoutubeDL(base_opts()) must not
+    raise AssertionError from the impersonate availability check."""
+    from yt_dlp import YoutubeDL
+
+    ytdlp_helper.discover_impersonation.cache_clear()
+    try:
+        opts = ytdlp_helper.base_opts()
+        with YoutubeDL(opts):
+            pass  # construction alone used to raise AssertionError
     finally:
         ytdlp_helper.discover_impersonation.cache_clear()
 

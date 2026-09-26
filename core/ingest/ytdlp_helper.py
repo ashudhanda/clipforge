@@ -18,6 +18,7 @@ import re
 from typing import Optional
 
 from yt_dlp import YoutubeDL
+from yt_dlp.networking.impersonate import ImpersonateTarget
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ def _parse_version(text: str) -> int:
 
 
 @functools.lru_cache(maxsize=1)
-def discover_impersonation() -> Optional[str]:
+def discover_impersonation() -> Optional[ImpersonateTarget]:
     """Return the best usable ``--impersonate`` target, or ``None``.
 
     Probes the installed yt-dlp via its own ``_get_available_impersonate_targets``
@@ -57,6 +58,13 @@ def discover_impersonation() -> Optional[str]:
     depends on a hardcoded client/version list. Prefers the newest Chrome
     target; falls back to the first available target; returns ``None`` when
     impersonation is unavailable (e.g. ``curl_cffi`` not installed).
+
+    Returns the ``ImpersonateTarget`` object itself, NOT its string form.
+    ``YoutubeDL.__init__`` passes the ``impersonate`` param straight into
+    ``is_supported_target()``, which does
+    ``assert isinstance(target, ImpersonateTarget)`` — handing it a string
+    crashes every download with a bare ``AssertionError``. (Seen in the
+    wild on v0.1.7, 2026-09-26.)
     """
     try:
         with YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
@@ -69,10 +77,9 @@ def discover_impersonation() -> Optional[str]:
         t for t, _handler in available if (t.client or "").lower() == "chrome"
     ]
     if chromes:
-        best = max(chromes, key=_parse_version_key)
-        return str(best)
+        return max(chromes, key=_parse_version_key)
     if available:
-        return str(available[0][0])
+        return available[0][0]
     return None
 
 

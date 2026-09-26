@@ -169,6 +169,7 @@
 .cand .grow{flex:1;min-width:0}
 .cand-title{font-size:13px;font-weight:600;line-height:1.35}
 .cand-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+.badge-used{display:inline-block;font-size:10px;font-weight:700;color:#8a6d00;background:#fff3c4;border:1px solid #ecd27a;border-radius:20px;padding:1px 8px;margin-left:6px;vertical-align:1px}
 .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
 .tab-btn{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer}
 .tab-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent}
@@ -1102,10 +1103,17 @@ async function pollDiscovery() {
     }
     S.candidates = cands;
     if (!cands.length) {
-      $("discStatus").textContent = "No fresh videos found — everything new was already used. Try again later.";
+      $("discStatus").textContent = "No videos found — YouTube may be rate-limiting this network right now. Try again in a bit.";
       return;
     }
-    $("discStatus").textContent = cands.length + " fresh video" + (cands.length === 1 ? "" : "s") + " found. Tick the ones to clip.";
+    const reused = cands.filter((c) => c.seen_before).length;
+    if (reused === cands.length) {
+      $("discStatus").textContent = cands.length + " video" + (cands.length === 1 ? "" : "s") + " found — all used before, but reuse is fine. Tick the ones to clip.";
+    } else if (reused) {
+      $("discStatus").textContent = cands.length + " videos found (" + reused + " used before). Tick the ones to clip.";
+    } else {
+      $("discStatus").textContent = cands.length + " fresh video" + (cands.length === 1 ? "" : "s") + " found. Tick the ones to clip.";
+    }
     renderCandidates();
   } catch (e) {
     $("discBtn").disabled = false;
@@ -1118,7 +1126,7 @@ function renderCandidates() {
   for (const c of S.candidates) {
     const el = document.createElement("label");
     el.className = "cand";
-    el.innerHTML = '<input type="checkbox" checked/><div class="grow"><div class="cand-title">' + esc(c.title || "Untitled") + '</div><div class="cand-sub">' + esc(nicheName(c.niche)) + (c.channel ? " · " + esc(c.channel) : "") + (c.upload_date && publishedAgo(c.upload_date) ? " · Published " + esc(publishedAgo(c.upload_date)) : "") + (c.score ? " · score " + esc(c.score) : "") + "</div></div>";
+    el.innerHTML = '<input type="checkbox" checked/><div class="grow"><div class="cand-title">' + esc(c.title || "Untitled") + (c.seen_before ? '<span class="badge-used">used before</span>' : "") + '</div><div class="cand-sub">' + esc(nicheName(c.niche)) + (c.channel ? " · " + esc(c.channel) : "") + (c.upload_date && publishedAgo(c.upload_date) ? " · Published " + esc(publishedAgo(c.upload_date)) : "") + (c.score ? " · score " + esc(c.score) : "") + "</div></div>";
     const cb = el.querySelector("input");
     cb.checked = c._sel !== false;
     cb.addEventListener("change", () => { c._sel = cb.checked; });
