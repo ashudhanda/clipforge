@@ -188,6 +188,15 @@ def compute_crop(
     cw = (cw // step_w) * step_w
     ch = cw * uh // uw
 
+    # On tiny sources (smaller than one 18x32 ratio step) the clamped
+    # window can exceed the frame — e.g. 18x32 on a 20x20 video — which
+    # ffmpeg then rejects with a cryptic error. Fail here, clearly.
+    if cw > dw or ch > dh:
+        raise RuntimeError(
+            f"source video too small for a 9:16 crop: {dw}x{dh} "
+            f"(smallest exact-ratio window is {cw}x{ch})"
+        )
+
     if end is None:
         end = start + 30.0  # sampling window only; crop is geometric
     faces = detect_face_centers(video_path, start, end)

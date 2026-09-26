@@ -105,6 +105,11 @@ def base_opts(extra: Optional[dict] = None) -> dict:
     impersonate = discover_impersonation()
     if impersonate:
         opts["impersonate"] = impersonate
+    # YouTube bot-check hardening: the default web player client is the one
+    # YouTube hits with "Sign in to confirm you're not a bot". Try the
+    # Android player client first (far fewer challenges), fall back to web
+    # when Android can't serve a particular video.
+    opts["extractor_args"] = {"youtube": {"player_client": ["android", "web"]}}
     if extra:
         opts.update(extra)
     return opts

@@ -194,6 +194,13 @@ def build_ass(words: list[dict], style: str = "karaoke") -> str:
     """
     style = resolve_style(style)
 
+    # Validate early: a non-string word text (e.g. null from a transcript)
+    # would otherwise die later with a confusing AttributeError.
+    for w in words:
+        text = w.get("text") if isinstance(w, dict) else getattr(w, "text", None)
+        if not isinstance(text, str):
+            raise ValueError(f"caption word text must be a string, got {text!r}")
+
     # Clamp tiny durations so no word flashes by invisibly.
     norm: list[dict] = []
     for w in words:

@@ -19,6 +19,16 @@ log = logging.getLogger(__name__)
 
 DEFAULT_CACHE_SUBDIR = "audio"
 
+# yt-dlp temp extensions: an interrupted download leaves these behind.
+# They must never count as a completed download.
+_TEMP_SUFFIXES = (".part", ".ytdl", ".temp")
+
+
+def _is_temp_download(path: str) -> bool:
+    """True for yt-dlp's in-progress/leftover temp files."""
+    name = os.path.basename(path)
+    return name.endswith(_TEMP_SUFFIXES) or ".part-" in name
+
 
 def _cache_dir(cache_dir: Optional[str]) -> str:
     base = cache_dir or os.path.join(os.path.expanduser("~"), ".cache", "clipforge")
@@ -30,6 +40,11 @@ def _cache_dir(cache_dir: Optional[str]) -> str:
 def _find_cached_audio(cache: str, video_id: str) -> Optional[str]:
     matches = sorted(glob.glob(os.path.join(cache, f"audio_{video_id}.*")))
     for path in matches:
+        if _is_temp_download(path):
+            # Interrupted download: a partial/corrupt file. Ignore it so a
+            # fresh download happens instead of transcribing garbage.
+            log.debug("ignoring incomplete download %s", path)
+            continue
         if os.path.getsize(path) > 0:
             return path
     return None
@@ -94,6 +109,119 @@ def _pick_device(requested: str) -> str:
     return "cpu"
 
 
+def _looks_like_cuda_failure(exc: Exception) -> bool:
+    """True when model construction failed because CUDA is unusable
+    (broken driver, CPU-only ctranslate2 build, OOM at load)."""
+    msg = f"{type(exc).__name__}: {exc}".lower()
+    return any(
+        token in msg
+        for token in (
+            "cuda",
+            "cublas",
+            "cudnn",
+            "nvml",
+            "nvidia",
+            "gpu",
+            "driver",
+            "out of memory",
+            "outofmemory",
+        )
+    )
+
+
+def _model_repo_id(model: str) -> Optional[str]:
+    """Resolve a faster-whisper model name to its Hugging Face repo id,
+    using the same mapping faster-whisper itself uses."""
+    if "/" in model:
+        return model
+    try:
+        from faster_whisper.utils import _MODELS
+
+        return _MODELS.get(model)
+    except Exception:
+        return None
+
+
+def _purge_model_cache(model: str, cache_dir: Optional[str] = None) -> bool:
+    """Best-effort delete of the cached HF snapshot for this model so a
+    corrupt or interrupted download is fetched fresh on retry. Only ever
+    touches that one model's cache entry. Never raises."""
+    try:
+        from huggingface_hub.utils import scan_cache_dir
+
+        repo_id = _model_repo_id(model)
+        if not repo_id:
+            return False
+        info = scan_cache_dir(cache_dir)
+        purged = False
+        for repo in info.repos:
+            if repo.repo_id == repo_id:
+                # delete_revisions only *plans* the deletion; execute() does it.
+                info.delete_revisions(
+                    *[r.commit_hash for r in repo.revisions]
+                ).execute()
+                purged = True
+        if purged:
+            log.info("purged model cache for %r", repo_id)
+        return purged
+    except Exception as exc:
+        log.debug("model cache purge failed: %s", exc)
+        return False
+
+
+def _is_permanent_model_error(exc: Exception) -> bool:
+    """True for init errors a fresh download can never fix: unknown model
+    name, bad device/compute_type, repo gone. Retrying those would just
+    burn a full model re-download before failing identically."""
+    if isinstance(exc, ValueError):
+        return True
+    return type(exc).__name__ in (
+        "RepositoryNotFoundError",
+        "GatedRepoError",
+        "HFValidationError",
+    )
+
+
+def _init_with_cache_retry(cls, model: str, device: str, compute_type: str):
+    """Construct the model; on a non-permanent init failure (interrupted
+    download, corrupt cache) purge that model's HF cache and try exactly
+    once more. The last error always propagates — nothing is swallowed."""
+    try:
+        return cls(model, device=device, compute_type=compute_type)
+    except Exception as exc:
+        if _is_permanent_model_error(exc):
+            raise
+        _purge_model_cache(model)
+        log.warning("model init failed (%s); purged model cache, retrying once", exc)
+        return cls(model, device=device, compute_type=compute_type)
+
+
+def _init_whisper_model(model: str, device: str, compute_type: str, auto_device: bool):
+    """Construct the faster-whisper model with graceful degradation.
+
+    - CUDA auto-picked but unusable -> retry once on CPU ("auto" means
+      best available; an explicit ``device="cuda"`` still fails loudly).
+    - Interrupted download / corrupt model cache -> purge + one retry.
+    """
+    cls = _whisper_model_cls()
+    try:
+        return cls(model, device=device, compute_type=compute_type)
+    except Exception as exc:
+        if _looks_like_cuda_failure(exc) and device == "cuda":
+            # CUDA is unusable on this box — a re-download can never fix
+            # that, so never purge here. With "auto" the faithful move is
+            # CPU; with an explicit device="cuda" this is a config error.
+            if auto_device:
+                log.warning("CUDA init failed (%s); falling back to CPU", exc)
+                return _init_with_cache_retry(cls, model, "cpu", "int8")
+            raise
+        if _is_permanent_model_error(exc):
+            raise
+        _purge_model_cache(model)
+        log.warning("model init failed (%s); purged model cache, retrying once", exc)
+        return cls(model, device=device, compute_type=compute_type)
+
+
 def transcribe_audio(
     video_url: str,
     model: str = "small",
@@ -109,11 +237,12 @@ def transcribe_audio(
     Returns ``[{"start", "end", "text"}]`` per word, times in seconds.
     """
     audio_path = download_audio(video_url, cache_dir=cache_dir)
+    auto_device = device == "auto"
     dev = _pick_device(device)
     compute_type = "float16" if dev == "cuda" else "int8"
     log.info("transcribing %s with faster-whisper %s (%s)", audio_path, model, dev)
 
-    wm = _whisper_model_cls()(model, device=dev, compute_type=compute_type)
+    wm = _init_whisper_model(model, dev, compute_type, auto_device)
     tx_kwargs = dict(language=language, word_timestamps=True, vad_filter=vad_filter)
     try:
         segments, _info = wm.transcribe(audio_path, **tx_kwargs)

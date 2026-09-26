@@ -98,7 +98,11 @@ def _save_token(creds) -> None:
 
 
 def _load_token():
-    """Return stored Credentials or None (never launches a browser)."""
+    """Return stored Credentials or None (never launches a browser).
+
+    Any unreadable token file — missing, truncated, or valid JSON in the
+    wrong shape — is treated as "no token", never a crash.
+    """
     from google.oauth2.credentials import Credentials
 
     p = token_path()
@@ -107,7 +111,7 @@ def _load_token():
     try:
         return Credentials.from_authorized_user_file(
             str(p), scopes=[YOUTUBE_UPLOAD_SCOPE])
-    except (OSError, ValueError) as e:
+    except Exception as e:  # noqa: BLE001 — corrupt token == no token
         log.warning("stored YouTube token unreadable: %s", e)
         return None
 
@@ -148,12 +152,18 @@ def _run_consent_flow(client_config: dict):
     return creds
 
 
-def get_credentials():
+def get_credentials(interactive: bool = True):
     """Return valid YouTube credentials.
 
     Order: stored token (refresh silently if expired) -> first-time
     browser consent flow. Raises OAuthNotConfigured when the user
     hasn't created the Google Cloud client yet.
+
+    ``interactive``: pass False from unattended contexts (crons). When the
+    stored token can't be refreshed, a non-interactive call raises
+    OAuthNotConfigured with a plain-language message instead of opening
+    a browser consent flow that would block for minutes on a headless
+    machine.
     """
     creds = _load_token()
     if creds and creds.valid:
@@ -162,6 +172,10 @@ def get_credentials():
         if _refresh(creds):
             return creds
         # Refresh failed (revoked/expired) — fall through to re-consent.
+    if not interactive:
+        raise OAuthNotConfigured(
+            "YouTube sign-in expired or was revoked — reconnect it in the "
+            "dashboard (a browser consent step is needed), then retry.")
     return _run_consent_flow(_load_client_config())
 
 

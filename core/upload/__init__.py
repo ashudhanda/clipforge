@@ -23,7 +23,8 @@ log = logging.getLogger("clipforge.upload")
 UPLOAD_MODES = ("api", "browser", "manual")
 
 
-def upload_clip(clip: dict, mode: str = "api") -> dict:
+def upload_clip(clip: dict, mode: str = "api",
+                interactive: bool = True) -> dict:
     """Route one clip to its upload destination.
 
     Returns a dict with "ok": True and method-specific payload, e.g.
@@ -31,6 +32,10 @@ def upload_clip(clip: dict, mode: str = "api") -> dict:
     Raises UploadError on honest failures (bad file, API rejection…).
     Quota exhaustion on mode="api" degrades gracefully to the browser
     bundle instead of raising.
+
+    ``interactive``: pass False from unattended contexts (crons) — an
+    expired/revoked YouTube token then raises OAuthNotConfigured fast
+    instead of opening a blocking browser consent flow.
     """
     if mode not in UPLOAD_MODES:
         raise UploadError(
@@ -69,6 +74,7 @@ def upload_clip(clip: dict, mode: str = "api") -> dict:
             description=clip.get("description") or "",
             hashtags=clip.get("hashtags") or [],
             privacy=privacy,
+            interactive=interactive,
         )
         return {"ok": True, "method": "api", **result}
     except QuotaExceeded as e:

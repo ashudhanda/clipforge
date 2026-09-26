@@ -8,6 +8,7 @@ rewritten in Python with our OWN rubric text, weights and thresholds.
 from __future__ import annotations
 
 import logging
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -62,6 +63,11 @@ def group_sentences(transcript: list[dict]) -> list[_Sentence]:
         except (KeyError, TypeError, ValueError):
             continue
         if not t or e <= s:
+            continue
+        # Non-finite timestamps (NaN/±inf from broken transcribers) would
+        # corrupt sorting, formatting and round() downstream — drop them
+        # like any other malformed item.
+        if not (math.isfinite(s) and math.isfinite(e)):
             continue
         # Split multi-sentence items, sharing time by character proportion.
         parts = re.split(r"(?<=[.!?\u2026\u0964])\s+", t)

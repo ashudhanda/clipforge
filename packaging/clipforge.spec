@@ -47,13 +47,31 @@ APP_ICON = _ICON if os.path.isfile(_ICON) else None
 # so PyInstaller's import analysis misses its zone files. Windows has no
 # system tz database — without this the frozen app crashes at startup
 # (ZoneInfoNotFoundError: America/Los_Angeles). Collected explicitly.
+# --- cv2 Haar cascades (cv2/data/*.xml): hook-cv2.py does NOT collect them,
+# so without this every frozen build silently loses face-aware smart crop
+# (CascadeClassifier loads empty -> detect_face_centers() returns [] and the
+# 9:16 crop degrades to center crop with no error anywhere).
+# --- googleapiclient static discovery doc: build("youtube", "v3") uses
+# static_discovery=True by default and RAISES UnknownApiNameOrVersion (no
+# network fallback) when youtube.v3.json is missing — YouTube upload would be
+# 100% broken in the frozen app. Collect ONLY youtube.v3.json: the full
+# documents/ dir is ~100MB of API docs we never call.
 try:
     from PyInstaller.utils.hooks import collect_data_files
+except ImportError:
+    collect_data_files = None  # spec linted/parsed without PyInstaller: skip
 
+if collect_data_files is not None:
+    # NOTE: collection failures must FAIL THE BUILD LOUDLY. The v0.1.6
+    # incident was a silently-skipped data file — never swallow these again.
     datas += collect_data_files("faster_whisper")
     datas += collect_data_files("tzdata")
-except Exception:
-    pass  # local dev without PyInstaller: assets resolve from site-packages, tzdata falls back to system
+    datas += collect_data_files("cv2", subdir="data")
+    datas += collect_data_files(
+        "googleapiclient",
+        subdir=os.path.join("discovery_cache", "documents"),
+        includes=["youtube.v3.json"],
+    )
 
 # --- bundled binaries (ffmpeg/ffprobe land at the bundle root) --------------
 binaries = []

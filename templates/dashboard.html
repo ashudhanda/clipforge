@@ -1095,7 +1095,7 @@ async function pollDiscovery() {
     const r = await get("/api/discover/" + S.discRun);
     if (r.status === "running") { setTimeout(pollDiscovery, 2000); return; }
     $("discBtn").disabled = false;
-    const groups = r.results || {};
+    const groups = r.candidates || {};
     const cands = [];
     for (const [niche, list] of Object.entries(groups)) {
       for (const c of list) cands.push(Object.assign({ niche }, c));
@@ -1188,7 +1188,7 @@ async function generateFromDiscoveryAuto() {
   let groups = {};
   for (let i = 0; i < 60; i++) {
     const r = await get("/api/discover/" + run_id);
-    if (r.status !== "running") { groups = r.results || {}; break; }
+    if (r.status !== "running") { groups = r.candidates || {}; break; }
     await new Promise((res) => setTimeout(res, 2000));
   }
   const cands = [];
@@ -1305,10 +1305,10 @@ function renderJobs() {
     tr.dataset.jobId = j.id;
     const dur = jobDuration(j);
     tr.innerHTML =
-      '<td data-label="Project"><div class="job-cell"><div class="thumb"><svg><use href="#i-film"/></svg></div><div class="job-name"><strong>' + esc(jobTitle(j)) + '</strong><span>' + esc(nicheName(j.niche)) + " · " + esc(ago(j.created)) + "</span></div></div></td>"
+      '<td data-label="Project"><div class="job-cell"><div class="thumb"><svg><use href="#i-film"/></svg></div><div class="job-name"><strong>' + esc(jobTitle(j)) + '</strong><span>' + esc(nicheName(j.niche_id)) + " · " + esc(ago(j.created)) + "</span></div></div></td>"
       + '<td data-label="Status"><span class="pill pill-' + esc(j.status) + '">' + esc(j.status) + "</span>"
       + (j.error ? '<div class="job-err">' + esc(j.error).slice(0, 200) + "</div>" : "") + "</td>"
-      + '<td data-label="Niche">' + esc(nicheName(j.niche)) + "</td>"
+      + '<td data-label="Niche">' + esc(nicheName(j.niche_id)) + "</td>"
       + '<td data-label="Progress"><div class="progress-row"><div class="progress-track"><i style="width:' + (j.progress || 0) + '%"></i></div><span>' + (j.progress || 0) + '%</span></div></td>'
       + '<td data-label="Duration">' + dur + "</td>"
       + '<td data-label="Updated">' + esc(ago(j.updated || j.created)) + "</td>"
@@ -1405,7 +1405,7 @@ async function retryJob(jobId) {
   if (!j || !j.url) { toast("Can't retry — source URL is missing"); return; }
   try {
     await post("/api/jobs", {
-      url: j.url, niche_id: j.niche || "custom", custom_niche: j.custom_niche || "",
+      url: j.url, niche_id: j.niche_id || "custom", custom_niche: j.custom_niche || "",
       caption_style: j.caption_style || S.cfg.caption_style || "karaoke",
       max_clips: j.max_clips || 2,
     });

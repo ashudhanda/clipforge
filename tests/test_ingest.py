@@ -77,6 +77,13 @@ def test_extract_video_id(url, expected):
 # ------------------------------------------------- impersonation discovery
 
 
+def test_base_opts_has_bot_check_hardening():
+    opts = ytdlp_helper.base_opts()
+    clients = opts["extractor_args"]["youtube"]["player_client"]
+    assert "android" in clients  # android client dodges most web bot-checks
+    assert "web" in clients  # web stays as fallback
+
+
 def test_discover_impersonation_degrades_gracefully(monkeypatch):
     ytdlp_helper.discover_impersonation.cache_clear()
 

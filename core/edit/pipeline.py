@@ -68,10 +68,22 @@ def build_short(
     end = float(_clip_get(clip, "end"))
     style = _captions.resolve_style(_clip_get(clip, "caption_style", "karaoke") or "karaoke")
     words = list(_clip_get(clip, "transcript", []) or [])
+    # Fail fast on corrupt transcript data: a non-string word text would
+    # otherwise die much later with a confusing AttributeError (in
+    # plan_cuts' filler-word scan or in ASS building).
+    for w in words:
+        text = w.get("text") if isinstance(w, dict) else getattr(w, "text", None)
+        if not isinstance(text, str):
+            raise ValueError(f"transcript word text must be a string, got {text!r}")
     if end <= start:
         raise ValueError(f"clip end ({end}) must be > start ({start})")
     if not os.path.exists(source_video):
         raise FileNotFoundError(f"source video not found: {source_video}")
+    if os.path.realpath(out_path) == os.path.realpath(source_video):
+        raise ValueError(
+            "out_path must differ from source_video "
+            "(rendering onto the source would destroy it)"
+        )
 
     tmp = tempfile.mkdtemp(prefix="cf2edit_", dir=workdir)
     try:
@@ -221,7 +233,12 @@ def _verify_output(out_path: str, expected_dur: float) -> None:
     w, h = int(v["width"]), int(v["height"])
     if (w, h) != (OUT_W, OUT_H):
         raise RuntimeError(f"output is {w}x{h}, expected {OUT_W}x{OUT_H}")
-    dur = float(info.get("format", {}).get("duration", 0) or 0)
+    try:
+        dur = float(info.get("format", {}).get("duration", 0) or 0)
+    except (TypeError, ValueError):
+        # ffprobe reports "N/A" (or omits duration) for some containers —
+        # skip the duration sanity check rather than dying on the parse.
+        dur = 0.0
     if dur and abs(dur - expected_dur) > 1.0:
         raise RuntimeError(
             f"output duration {dur:.1f}s far from expected {expected_dur:.1f}s"

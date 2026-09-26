@@ -11,6 +11,7 @@ Opens http://127.0.0.1:5057 in the browser automatically.
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -171,7 +172,11 @@ def _job_update(job_id: str, **kw):
 
 def _run_job(job_id: str):
     with _jobs_lock:
-        job = _jobs[job_id]
+        job = _jobs.get(job_id)
+    if job is None:
+        # Defensive: nothing to run (e.g. state was reset mid-start).
+        log.error("job %s vanished before its worker started", job_id)
+        return
     try:
         _run_pipeline(job)
     except Exception as exc:  # never crash the thread silently
@@ -182,18 +187,76 @@ def _run_job(job_id: str):
         _persist_job(job_id)
 
 
+_PERSIST_LIMIT = 200_000  # max bytes per persisted job file
+
+
+def _slim_job_text(job: dict) -> str:
+    """Serialize a job for disk, shrinking long fields instead of cutting
+    the JSON mid-string (a raw [:200_000] slice writes invalid JSON, which
+    _load_jobs then silently drops — the job vanishes on restart).
+
+    Always returns valid JSON.
+    """
+    slim = {k: v for k, v in job.items() if k != "notes"}
+    text = json.dumps(slim, indent=2, ensure_ascii=False)
+    if len(text) <= _PERSIST_LIMIT:
+        return text
+    work = copy.deepcopy(slim)
+    clips = work.get("clips")
+    if not isinstance(clips, list):
+        clips = []
+        work["clips"] = clips
+    for budget in (2000, 500, 100):
+        for clip in clips:
+            if not isinstance(clip, dict):
+                continue
+            for k in ("description", "title", "hook", "reason"):
+                v = clip.get(k)
+                if isinstance(v, str) and len(v) > budget:
+                    clip[k] = v[:budget] + "…"
+        for k in ("error", "step", "url"):
+            v = work.get(k)
+            if isinstance(v, str) and len(v) > budget:
+                work[k] = v[:budget] + "…"
+        text = json.dumps(work, indent=2, ensure_ascii=False)
+        if len(text) <= _PERSIST_LIMIT:
+            return text
+    # Last resort: job shell + minimal clip rows (still valid JSON).
+    minimal = {k: v for k, v in work.items() if k != "clips"}
+    minimal["clips"] = [
+        {k: c.get(k) for k in ("index", "start", "end", "title", "video")}
+        for c in clips if isinstance(c, dict)
+    ]
+    text = json.dumps(minimal, indent=2, ensure_ascii=False)
+    if len(text) > _PERSIST_LIMIT:
+        minimal["clips"] = []
+        text = json.dumps(minimal, indent=2, ensure_ascii=False)
+    return text
+
+
 def _persist_job(job_id: str):
+    # The filename comes from the URL on some routes: never let a crafted
+    # id escape the jobs directory (the 404 guards above already reject
+    # unknown ids; this defends the sink itself).
+    if not job_id or ".." in job_id or "/" in job_id or "\\" in job_id:
+        log.warning("refusing to persist job with unsafe id %r", job_id)
+        return
+    # Deep-copy under the lock: serializing the live dict outside the lock
+    # can race with a background thread mutating a clip mid-dump.
     with _jobs_lock:
-        job = dict(_jobs.get(job_id, {}))
+        job = copy.deepcopy(_jobs.get(job_id) or {})
     if not job:
         return
-    slim = {k: v for k, v in job.items() if k != "notes"}
     try:
-        (jobs_dir() / f"{job_id}.json").write_text(
-            json.dumps(slim, indent=2, ensure_ascii=False)[:200_000],
-            encoding="utf-8")
-    except OSError:
-        pass
+        target = jobs_dir() / f"{job_id}.json"
+        tmp = target.with_name(target.name + ".tmp")
+        tmp.write_text(_slim_job_text(job), encoding="utf-8")
+        os.replace(tmp, target)  # atomic: a crash never leaves a half-file
+    except (OSError, TypeError, ValueError):
+        # TypeError/ValueError: _slim_job_text hit a non-serializable value.
+        # Never let that kill the worker thread's finally block or a
+        # request: log and skip this persist.
+        log.warning("could not persist job %s", job_id, exc_info=True)
 
 
 def _load_jobs():
@@ -206,12 +269,16 @@ def _load_jobs():
     try:
         files = sorted(jobs_dir().glob("*.json"))
     except OSError:
+        log.warning("could not read jobs dir", exc_info=True)
         return
     loaded = 0
     for p in files:
         try:
             job = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError):
+            # Corrupt/truncated/undecodable file: skip it, keep booting.
+            # (ValueError covers JSONDecodeError and UnicodeDecodeError.)
+            log.warning("skipping unreadable job file %s", p.name)
             continue
         if not isinstance(job, dict) or not job.get("id"):
             continue
@@ -220,6 +287,12 @@ def _load_jobs():
             job["step"] = "Interrupted by app restart"
             job["error"] = ("The app was restarted while this job was running. "
                             "Start a new job to rebuild the clips.")
+        # Normalize legacy/hand-edited files so the API never KeyErrors.
+        if not isinstance(job.get("clips"), list):
+            job["clips"] = []
+        if not isinstance(job.get("notes"), list):
+            job["notes"] = []
+        job.setdefault("created", 0)
         with _jobs_lock:
             _jobs[job["id"]] = job
         loaded += 1
@@ -448,8 +521,8 @@ def api_llm_save():
     data = request.get_json(force=True) or {}
     try:
         stored = llm_keys_mod.load_keys()
-        gemini_key = str(data.get("gemini_key", "")).strip()
-        openai_key = str(data.get("openai_key", "")).strip()
+        gemini_key = str(data.get("gemini_key") or "").strip()
+        openai_key = str(data.get("openai_key") or "").strip()
         if not gemini_key:
             gemini_key = stored["gemini_key"]
         if not openai_key:
@@ -688,6 +761,10 @@ def api_clip_metadata(job_id, idx):
             tags = data["hashtags"]
             if isinstance(tags, str):
                 tags = re.split(r"[,\s]+", tags)
+            elif not isinstance(tags, list):
+                return jsonify({"ok": False,
+                                "error": "hashtags must be a \"#a #b\" string "
+                                         "or a list."}), 400
             tags = [str(t).strip() for t in (tags or []) if str(t).strip()]
             tags = [t if t.startswith("#") else f"#{t}" for t in tags]
             clip["hashtags"] = tags[:30]
@@ -799,7 +876,8 @@ def api_discover_start():
     if niches is not None:
         known = {n["id"] for n in niches_mod.list_niches()} | {"custom"}
         if (not isinstance(niches, list) or not niches
-                or any(n not in known for n in niches)):
+                or any(not isinstance(n, str) or n not in known
+                       for n in niches)):
             return jsonify({"ok": False, "error": "Unknown niche id."}), 400
         if "custom" in niches and not (custom_niche or cfg.get("custom_niche")):
             return jsonify({"ok": False,
@@ -847,8 +925,9 @@ def serve_clip(job_id, idx):
 def api_jobs_list():
     with _jobs_lock:
         jobs = [ {k: v for k, v in j.items() if k != "clips"}
-                 | {"clip_count": len(j["clips"])} for j in _jobs.values() ]
-    jobs.sort(key=lambda j: j["created"], reverse=True)
+                 | {"clip_count": len(j.get("clips") or [])}
+                 for j in _jobs.values() ]
+    jobs.sort(key=lambda j: j.get("created", 0), reverse=True)
     return jsonify(jobs)
 
 
@@ -936,7 +1015,9 @@ def _upload_clip_bg(job_id: str, idx: int):
         with _jobs_lock:
             clip = dict(_jobs[job_id]["clips"][idx])
         path = str(clips_dir() / f"{job_id}_{idx}.mp4")
-        res = yt_upload_clip({**clip, "file": path}, mode="api")
+        # Unattended thread: never open a blocking browser consent flow.
+        res = yt_upload_clip({**clip, "file": path}, mode="api",
+                             interactive=False)
         with _jobs_lock:
             c = _jobs[job_id]["clips"][idx]
             c["uploading"] = False
@@ -968,21 +1049,24 @@ def _upload_clip_bg(job_id: str, idx: int):
 @app.route("/api/jobs/<job_id>/clips/<int:idx>/restyle", methods=["POST"])
 def api_clip_restyle(job_id, idx):
     data = request.get_json(force=True) or {}
-    style = str(data.get("style", ""))
+    # The dashboard posts {"caption_style": ...}; accept "style" too.
+    style = str(data.get("style") or data.get("caption_style") or "")
     if style not in AVAILABLE_STYLES:
         return jsonify({"ok": False, "error": f"Unknown caption style {style!r}."}), 400
     with _jobs_lock:
         job = _jobs.get(job_id)
-        if not job or idx >= len(job["clips"]):
+        if not job or idx >= len(job.get("clips") or []):
             return jsonify({"ok": False, "error": "Clip not found."}), 404
         if job["status"] == "running":
             return jsonify({"ok": False,
                             "error": "Wait for this job to finish first."}), 409
-        clip = job["clips"][idx]
+        if job.get("restyling") is not None:
+            return jsonify({"ok": False,
+                            "error": "A re-style is already running for this "
+                                     "project — wait for it to finish."}), 409
+        job["restyling"] = idx
     t = threading.Thread(target=_restyle_clip,
                          args=(job_id, idx, style), daemon=True)
-    with _jobs_lock:
-        job["restyling"] = idx
     t.start()
     return jsonify({"ok": True, "style": style})
 

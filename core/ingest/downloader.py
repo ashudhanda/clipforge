@@ -8,6 +8,7 @@ cached under a deterministic filename. Repeat runs are free.
 
 from __future__ import annotations
 
+import glob
 import hashlib
 import logging
 import os
@@ -81,30 +82,68 @@ def _probe_duration(path: str) -> Optional[float]:
         return None
 
 
+def _media_stem(out_path: str) -> str:
+    """``out_path`` without its trailing ``.mp4``.
+
+    Strips the suffix only — a plain ``str.replace(".mp4", ...)`` would also
+    rewrite a cache dir that happens to contain ``".mp4"`` elsewhere in the
+    path, corrupting the yt-dlp output template.
+    """
+    if out_path.endswith(".mp4"):
+        return out_path[: -len(".mp4")]
+    return out_path
+
+
+def _remove_partial(out_path: str) -> None:
+    """Best-effort delete of this range's outputs (final file plus ``.part``
+    resume leftovers) after a failed download.
+
+    Without this, a failed/truncated download leaves bytes behind that a
+    later run mistakes for a valid cache hit, permanently serving a broken
+    clip. ``_download_single_range`` is only ever called when no valid
+    cached file exists, so nothing valuable is deleted here.
+    """
+    stem = _media_stem(out_path)
+    for path in [out_path, *glob.glob(stem + ".*")]:
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+        except OSError:
+            pass
+
+
 def _download_single_range(
     video_url: str, start: float, end: float, out_path: str, format: str
 ) -> str:
     """Fetch one ``(start, end)`` section; return the file path."""
     section = [{"start_time": start, "end_time": end, "title": "clip"}]
+    stem = _media_stem(out_path)
     opts = base_opts(
         {
             "format": format,
             "merge_output_format": "mp4",
-            "outtmpl": out_path.replace(".mp4", ".%(ext)s"),
+            "outtmpl": stem + ".%(ext)s",
             "download_ranges": lambda _info, _ydl: section,
         }
     )
-    with YoutubeDL(opts) as ydl:
-        ydl.extract_info(video_url, download=True)
+    try:
+        with YoutubeDL(opts) as ydl:
+            ydl.extract_info(video_url, download=True)
+    except Exception:
+        _remove_partial(out_path)
+        raise
     if not (os.path.exists(out_path) and os.path.getsize(out_path) > 0):
-        # yt-dlp may keep the merged ext; accept whatever it produced
-        import glob as _glob
-
-        alts = [p for p in _glob.glob(out_path.replace(".mp4", ".*"))
-                if os.path.getsize(p) > 0]
+        # yt-dlp may keep the merged ext; accept whatever it produced —
+        # but never a ``.part`` resume file, which is not a finished clip.
+        alts = [
+            p
+            for p in glob.glob(stem + ".*")
+            if not p.endswith(".part") and os.path.getsize(p) > 0
+        ]
         if alts:
             out_path = alts[0]
         else:
+            _remove_partial(out_path)
             raise RuntimeError(f"range download produced no file for {start}-{end}")
 
     # Guard against silently truncated downloads (e.g. flaky range
@@ -113,6 +152,7 @@ def _download_single_range(
     if expected >= _MIN_CHECK_SECONDS:
         duration = _probe_duration(out_path)
         if duration is not None and duration < 0.5 * expected:
+            _remove_partial(out_path)
             raise RuntimeError(
                 f"range download truncated for {start}-{end}: "
                 f"got {duration:.1f}s, expected ~{expected:.1f}s"

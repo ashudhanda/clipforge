@@ -14,9 +14,11 @@ pipeline — rewritten in Python, our own code):
 from __future__ import annotations
 
 import abc
+import http.client
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.request
 
@@ -44,23 +46,71 @@ DEFAULT_OPENAI_MODELS = [
 
 HTTP_TIMEOUT_S = 120
 
+# --- Retry policy for transient LLM failures --------------------------------
+# Scoring requests are idempotent (same prompt -> same ask), so a failed
+# attempt can simply be repeated. Retried: 408/429/5xx and network-level
+# errors (reset connections, truncated bodies, DNS blips). Never retried:
+# 400 (bad request), 401/403 (bad key — retrying won't help), 404 (model
+# gone — the per-provider model-fallback loop handles that itself).
+_RETRYABLE_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+_MAX_ATTEMPTS = 3
+_RETRY_BACKOFF_S = (1.0, 2.0)  # sleeps before attempt 2 and 3
+
 
 def estimate_tokens(text: str) -> int:
     """Rough token estimate (~4 chars/token). Used for the cost guard log."""
     return max(1, len(text) // 4)
 
 
+def _sleep_before_retry(attempt: int) -> None:
+    time.sleep(_RETRY_BACKOFF_S[min(attempt, len(_RETRY_BACKOFF_S) - 1)])
+
+
 def _post_json(url: str, payload: dict, headers: dict) -> dict:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "replace")[:500]
-        raise LLMError(f"LLM HTTP {e.code}: {body}") from e
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise LLMError(f"LLM network error: {e}") from e
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
+                raw = resp.read()
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "replace")[:500]
+            err = LLMError(f"LLM HTTP {e.code}: {body}")
+            if e.code in _RETRYABLE_HTTP_STATUS and attempt < _MAX_ATTEMPTS - 1:
+                log.warning(
+                    "LLM HTTP %s (attempt %d/%d) — retrying",
+                    e.code, attempt + 1, _MAX_ATTEMPTS,
+                )
+                _sleep_before_retry(attempt)
+                continue
+            raise err from e
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            OSError,
+            http.client.HTTPException,  # e.g. IncompleteRead on truncated body
+        ) as e:
+            if attempt < _MAX_ATTEMPTS - 1:
+                log.warning(
+                    "LLM network error (attempt %d/%d): %s — retrying",
+                    attempt + 1, _MAX_ATTEMPTS, e,
+                )
+                _sleep_before_retry(attempt)
+                continue
+            raise LLMError(f"LLM network error: {e}") from e
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise LLMError(f"LLM returned a non-UTF8 response body: {e}") from e
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            raise LLMError(
+                f"LLM returned a non-JSON response body (first 120 chars: "
+                f"{text[:120]!r}): {e}"
+            ) from e
+    # Unreachable: the loop always returns or raises.
+    raise LLMError(f"LLM request failed after {_MAX_ATTEMPTS} attempts")
 
 
 class LLMProvider(abc.ABC):
@@ -72,6 +122,43 @@ class LLMProvider(abc.ABC):
     def generate_json(self, system: str, user: str) -> tuple[object, dict]:
         """Return (parsed_json, usage_dict). Raise LLMError on any failure."""
         raise NotImplementedError
+
+
+def _gemini_text(resp: object) -> str:
+    """Pull the text out of a Gemini generateContent response.
+
+    Raises LLMError (never IndexError/KeyError/TypeError) so a
+    safety-blocked prompt — which comes back HTTP 200 with an empty
+    ``candidates`` list — degrades to the honest offline fallback in the
+    caller instead of crashing the job.
+    """
+    try:
+        text = resp["candidates"][0]["content"]["parts"][0]["text"]  # type: ignore[index]
+    except (KeyError, IndexError, TypeError) as e:
+        feedback = ""
+        if isinstance(resp, dict):
+            feedback = f" promptFeedback={json.dumps(resp.get('promptFeedback'))[:200]}"
+        raise LLMError(
+            f"Gemini returned no usable candidates (blocked or empty).{feedback}"
+        ) from e
+    if not isinstance(text, str) or not text.strip():
+        raise LLMError("Gemini returned an empty text part")
+    return text
+
+
+def _openai_text(resp: object) -> str:
+    """Pull the text out of an OpenAI chat-completion response.
+
+    Raises LLMError (never IndexError/AttributeError) on empty choices or
+    null content so callers keep their honest-failure contract.
+    """
+    try:
+        text = resp["choices"][0]["message"]["content"]  # type: ignore[index]
+    except (KeyError, IndexError, TypeError) as e:
+        raise LLMError("OpenAI returned no usable choices") from e
+    if not isinstance(text, str) or not text.strip():
+        raise LLMError("OpenAI returned empty content (possibly filtered)")
+    return text
 
 
 class GeminiProvider(LLMProvider):
@@ -101,7 +188,7 @@ class GeminiProvider(LLMProvider):
             )
             try:
                 resp = _post_json(url, payload, headers)
-                text = resp["candidates"][0]["content"]["parts"][0]["text"]
+                text = _gemini_text(resp)
                 return _parse_json_strict(text), {
                     "provider": self.name,
                     "model": model,
@@ -152,7 +239,7 @@ class OpenAIProvider(LLMProvider):
                     {**payload, "model": model},
                     headers,
                 )
-                text = resp["choices"][0]["message"]["content"]
+                text = _openai_text(resp)
                 return _parse_json_strict(text), {
                     "provider": self.name,
                     "model": model,
@@ -172,6 +259,8 @@ class OpenAIProvider(LLMProvider):
 
 def _parse_json_strict(text: str) -> object:
     """Parse model output as JSON; raise LLMError instead of guessing."""
+    if not isinstance(text, str):
+        raise LLMError(f"LLM did not return text (got {type(text).__name__})")
     text = text.strip()
     try:
         return json.loads(text)

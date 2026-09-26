@@ -11,7 +11,6 @@ import os
 from pathlib import Path
 
 from .niches import niche_ids
-
 APP_DIR_ENV = "CF_CONFIG_DIR"
 DEFAULT_DIR = Path.home() / ".clipforge"
 CONFIG_FILE = "config.json"
@@ -63,11 +62,55 @@ def normalize_quality_gate(value):
 
 
 def config_dir() -> Path:
-    return Path(os.environ.get(APP_DIR_ENV, str(DEFAULT_DIR)))
+    # An empty CF_CONFIG_DIR must not mean "the current working directory".
+    return Path(os.environ.get(APP_DIR_ENV) or str(DEFAULT_DIR))
 
 
 def config_path() -> Path:
     return config_dir() / CONFIG_FILE
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write *text* to *path* atomically (temp file + rename).
+
+    A crash or kill mid-write can never leave a torn (half-written) file
+    behind: readers either see the old content or the new content, never a
+    mix. The temp file lives in the same directory so the rename stays on
+    one filesystem (required for atomicity).
+    """
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _coerce_value(key: str, value):
+    """Fall back to the default when a hand-edited value has the wrong type.
+
+    load_config() promises bad files never crash the app; a wrong-typed
+    value (e.g. "quality_gate": "abc") is just as broken as a missing key,
+    so it gets the default instead of poisoning downstream int()/len()
+    calls. Files written by save_config() always carry native types, so
+    this only ever triggers on hand-edited files.
+    """
+    default = DEFAULTS[key]
+    if key == "quality_gate":
+        v = normalize_quality_gate(value)
+        return v if v is not None else default
+    if isinstance(default, bool):
+        return value if isinstance(value, bool) else default
+    if isinstance(default, int):
+        if isinstance(value, bool):
+            return default
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        return default
+    if isinstance(default, str):
+        return value if isinstance(value, str) else default
+    if isinstance(default, list):
+        return value if isinstance(value, list) else default
+    return value
 
 
 def default_config() -> dict:
@@ -75,13 +118,17 @@ def default_config() -> dict:
 
 
 def load_config() -> dict:
-    """Load config, merged over defaults so missing keys never crash."""
+    """Load config, merged over defaults so bad files never crash.
+
+    Missing file, invalid JSON, undecodable bytes, or wrong-typed values
+    all fall back to defaults (per-key), never raise.
+    """
     cfg = default_config()
     try:
-        raw = config_path().read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return cfg
-    except OSError:
+        # utf-8-sig tolerates a BOM left by Windows editors; plain UTF-8
+        # files read identically. UnicodeDecodeError is a ValueError.
+        raw = config_path().read_text(encoding="utf-8-sig")
+    except (OSError, ValueError):
         return cfg
     try:
         data = json.loads(raw)
@@ -90,7 +137,7 @@ def load_config() -> dict:
     if isinstance(data, dict):
         for k, v in data.items():
             if k in DEFAULTS:
-                cfg[k] = v
+                cfg[k] = _coerce_value(k, v)
     return cfg
 
 
@@ -165,5 +212,7 @@ def save_config(cfg: dict) -> Path:
             clean[k] = cfg[k]
     clean["setup_done"] = True
     path = config_path()
-    path.write_text(json.dumps(clean, indent=2, ensure_ascii=False), encoding="utf-8")
+    # Atomic write: a kill/crash mid-save must not leave a torn config.json
+    # (which load_config would then silently reset to defaults).
+    atomic_write_text(path, json.dumps(clean, indent=2, ensure_ascii=False))
     return path

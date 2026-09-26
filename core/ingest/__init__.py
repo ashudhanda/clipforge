@@ -42,7 +42,10 @@ def ingest(video_url, segments=None, cache_dir=None, languages=("en",), whisper_
     source = "captions"
     if not transcript:
         transcript = transcribe_audio(
-            video_url, model=whisper_model, cache_dir=cache_dir
+            video_url,
+            model=whisper_model,
+            cache_dir=cache_dir,
+            language=languages[0] if languages else "en",
         )
         source = "whisper"
 
