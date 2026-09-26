@@ -195,6 +195,40 @@ def _persist_job(job_id: str):
         pass
 
 
+def _load_jobs():
+    """Reload persisted jobs into memory on startup.
+
+    Without this, every app restart wipes the dashboard: the clips' mp4
+    files are still on disk but unreachable. In-flight jobs from a previous
+    run are marked interrupted (their worker thread is gone).
+    """
+    try:
+        files = sorted(jobs_dir().glob("*.json"))
+    except OSError:
+        return
+    loaded = 0
+    for p in files:
+        try:
+            job = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(job, dict) or not job.get("id"):
+            continue
+        if job.get("status") in ("queued", "running"):
+            job["status"] = "interrupted"
+            job["step"] = "Interrupted by app restart"
+            job["error"] = ("The app was restarted while this job was running. "
+                            "Start a new job to rebuild the clips.")
+        with _jobs_lock:
+            _jobs[job["id"]] = job
+        loaded += 1
+    if loaded:
+        log.info("reloaded %d job(s) from %s", loaded, jobs_dir())
+
+
+_load_jobs()
+
+
 def _run_pipeline(job: dict):
     jid = job["id"]
     url = job["url"]
@@ -403,17 +437,49 @@ def api_llm_status():
 
 @app.route("/api/llm", methods=["POST"])
 def api_llm_save():
-    """Save LLM keys from the dashboard (stored 0o600 in ~/.clipforge)."""
+    """Save LLM keys from the dashboard (stored 0o600 in ~/.clipforge).
+
+    Blank fields PRESERVE the already-stored key — they never wipe it.
+    To forget a key, use POST /api/llm/forget with {"which": "gemini"|"openai"}.
+    """
     data = request.get_json(force=True) or {}
     try:
+        stored = llm_keys_mod.load_keys()
+        gemini_key = str(data.get("gemini_key", "")).strip()
+        openai_key = str(data.get("openai_key", "")).strip()
+        if not gemini_key:
+            gemini_key = stored["gemini_key"]
+        if not openai_key:
+            openai_key = stored["openai_key"]
         llm_keys_mod.save_keys(
-            gemini_key=str(data.get("gemini_key", "")),
-            openai_key=str(data.get("openai_key", "")),
-            provider=str(data.get("provider", "auto") or "auto"),
+            gemini_key=gemini_key,
+            openai_key=openai_key,
+            provider=str(data.get("provider", "") or "").strip() or stored["provider"],
         )
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     return jsonify({"ok": True})
+
+
+@app.route("/api/llm/forget", methods=["POST"])
+def api_llm_forget():
+    """Forget one stored key ("gemini" or "openai"); the other is kept."""
+    data = request.get_json(force=True) or {}
+    try:
+        llm_keys_mod.forget_key(str(data.get("which", "")))
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    return jsonify({"ok": True})
+
+
+@app.route("/api/meta", methods=["GET"])
+def api_meta():
+    """App version + ffmpeg/ffprobe health for the dashboard status pill."""
+    from core.paths import ffmpeg_status
+    from core.version import __version__
+
+    return jsonify({"ok": True, "version": __version__,
+                    "ffmpeg": ffmpeg_status()})
 
 
 @app.route("/api/settings", methods=["POST"])
@@ -544,6 +610,13 @@ def api_youtube_client_upload():
                         "error": "That JSON doesn't look like a Google OAuth "
                                  "client file (no client_id found). Download "
                                  "it via Credentials → ⬇ on your OAuth client."}), 400
+    if "installed" not in data:
+        return jsonify({"ok": False,
+                        "error": "That client is the “Web application” type — "
+                                 "ClipForge needs a “Desktop app” OAuth client. "
+                                 "In Google Cloud Console create a new OAuth client "
+                                 "ID of type “Desktop app”, download its JSON, "
+                                 "and upload that file instead."}), 400
     try:
         p = yt_oauth.client_file_path()
         p.parent.mkdir(parents=True, exist_ok=True)

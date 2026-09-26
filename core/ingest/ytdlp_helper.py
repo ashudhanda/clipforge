@@ -91,6 +91,17 @@ def base_opts(extra: Optional[dict] = None) -> dict:
         "fragment_retries": 3,
         "noprogress": True,
     }
+    # Point yt-dlp at the bundled ffmpeg (frozen app) or the local one
+    # (dev). Without this, section downloads fail on machines with no
+    # system ffmpeg because yt-dlp only searches PATH by default.
+    try:
+        from core.paths import ffmpeg_dir as _ffmpeg_dir
+
+        ffdir = _ffmpeg_dir()
+    except Exception:
+        ffdir = None
+    if ffdir:
+        opts["ffmpeg_location"] = ffdir
     impersonate = discover_impersonation()
     if impersonate:
         opts["impersonate"] = impersonate

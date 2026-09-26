@@ -55,15 +55,38 @@ def displayed_dims(video_path: str) -> tuple[int, int]:
             raise RuntimeError(
                 f"frame extraction failed: {proc.stderr.decode()[:200]}"
             )
+        ffprobe = _ffprobe_path()
+        if not ffprobe:
+            raise RuntimeError(
+                "ffprobe not found — cannot measure the video's displayed size"
+            )
         probe = [
-            _ffprobe_path(), "-hide_banner", "-loglevel", "error",
+            ffprobe, "-hide_banner", "-loglevel", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height",
             "-of", "csv=p=0", png,
         ]
         out = subprocess.run(probe, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        w, h = out.stdout.decode().strip().split(",")
-        return int(w), int(h)
+        if out.returncode != 0:
+            raise RuntimeError(
+                f"ffprobe failed on extracted frame: {out.stderr.decode()[:200]}"
+            )
+        parts = out.stdout.decode().strip().split(",")
+        if len(parts) != 2:
+            raise RuntimeError(
+                f"ffprobe returned unexpected dimensions: {out.stdout.decode()[:80]!r}"
+            )
+        try:
+            w, h = int(parts[0]), int(parts[1])
+        except ValueError:
+            raise RuntimeError(
+                f"ffprobe returned non-numeric dimensions: {out.stdout.decode()[:80]!r}"
+            )
+        if w <= 0 or h <= 0:
+            raise RuntimeError(
+                f"ffprobe returned invalid dimensions: {w}x{h}"
+            )
+        return w, h
 
 
 def _sample_frame_png(video_path: str, t: float, width: int = 320) -> "np.ndarray | None":

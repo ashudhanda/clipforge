@@ -389,3 +389,17 @@ def test_ingest_falls_back_to_whisper_and_downloads(monkeypatch):
     assert out["source"] == "whisper"
     assert out["media_paths"] == ["p1.mp4", "p2.mp4"]
     assert seen["segments"] == [(1, 2), (5, 9)]
+
+
+def test_base_opts_points_ytdlp_at_bundled_ffmpeg(monkeypatch):
+    from core.ingest import ytdlp_helper
+    monkeypatch.setattr("core.paths.ffmpeg_dir", lambda: "/fake/bindir")
+    opts = ytdlp_helper.base_opts()
+    assert opts["ffmpeg_location"] == "/fake/bindir"
+
+
+def test_base_opts_no_ffmpeg_location_when_none_found(monkeypatch):
+    from core.ingest import ytdlp_helper
+    monkeypatch.setattr("core.paths.ffmpeg_dir", lambda: None)
+    opts = ytdlp_helper.base_opts()
+    assert "ffmpeg_location" not in opts

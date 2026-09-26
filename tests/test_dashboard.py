@@ -306,3 +306,139 @@ def test_ffmpeg_path_falls_back_to_which(monkeypatch):
     # system ffmpeg exists in this dev environment
     assert p.ffmpeg_path() is not None
     assert p.ffprobe_path() is not None
+
+
+# ------------------------------------------------------- simulated frozen app
+
+def _fake_meipass(tmp_path, monkeypatch):
+    """Simulate a PyInstaller bundle: sys.frozen + _MEIPASS with binaries."""
+    mp = tmp_path / "bundle"
+    mp.mkdir()
+    (mp / "ffmpeg").write_text("#!/bin/sh\n")
+    (mp / "ffprobe").write_text("#!/bin/sh\n")
+    monkeypatch.setattr("sys.frozen", True, raising=False)
+    monkeypatch.setattr("sys._MEIPASS", str(mp), raising=False)
+    monkeypatch.delenv("CLIPFORGE_FFMPEG", raising=False)
+    monkeypatch.delenv("CLIPFORGE_FFPROBE", raising=False)
+    return mp
+
+
+def test_frozen_app_finds_bundled_binaries(tmp_path, monkeypatch):
+    from core import paths as p
+    mp = _fake_meipass(tmp_path, monkeypatch)
+    assert p.is_frozen() is True
+    assert p.ffmpeg_path() == str(mp / "ffmpeg")
+    assert p.ffprobe_path() == str(mp / "ffprobe")
+    assert p.resource_path("templates") == mp / "templates"
+
+
+def test_frozen_missing_binaries_falls_back_to_system(tmp_path, monkeypatch):
+    from core import paths as p
+    mp = tmp_path / "emptybundle"
+    mp.mkdir()
+    monkeypatch.setattr("sys.frozen", True, raising=False)
+    monkeypatch.setattr("sys._MEIPASS", str(mp), raising=False)
+    monkeypatch.delenv("CLIPFORGE_FFMPEG", raising=False)
+    monkeypatch.delenv("CLIPFORGE_FFPROBE", raising=False)
+    # No bundled binaries here -> falls through to system PATH (exists on CI/dev)
+    import shutil
+    assert p.ffmpeg_path() == shutil.which("ffmpeg")
+    status = p.ffmpeg_status()
+    assert status["found"] is True
+    assert status["ffmpeg"]["source"] == "system"
+
+
+def test_ffmpeg_status_reports_missing_cleanly(tmp_path, monkeypatch):
+    from core import paths as p
+    mp = tmp_path / "emptybundle2"
+    mp.mkdir()
+    monkeypatch.setattr("sys.frozen", True, raising=False)
+    monkeypatch.setattr("sys._MEIPASS", str(mp), raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))  # nothing named ffmpeg here
+    monkeypatch.delenv("CLIPFORGE_FFMPEG", raising=False)
+    monkeypatch.delenv("CLIPFORGE_FFPROBE", raising=False)
+    status = p.ffmpeg_status()
+    assert status["found"] is False
+    assert status["ffmpeg"]["path"] is None
+    assert isinstance(status["guidance"], str) and len(status["guidance"]) > 20
+
+
+def test_repo_local_packaging_bin_fallback(monkeypatch):
+    # Dev from a cloned repo: packaging/bin is picked up without PATH setup.
+    from core import paths as p
+    import core.paths
+    fake = "/tmp/fake-repo-packaging-bin-test"
+    monkeypatch.delenv("CLIPFORGE_FFMPEG", raising=False)
+    monkeypatch.setattr("sys.frozen", False, raising=False)
+    monkeypatch.delenv("sys._MEIPASS", raising=False)
+    monkeypatch.setattr(core.paths, "_repo_bin",
+                        lambda name: f"{fake}/ffmpeg" if name == "ffmpeg" else None)
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    path, src = core.paths._resolve_bin("ffmpeg", "CLIPFORGE_FFMPEG")
+    assert path == f"{fake}/ffmpeg" and src == "repo"
+
+
+# ------------------------------------------------------- /api/llm blank-safety
+
+def test_api_llm_blank_fields_preserve_stored_keys(client):
+    from core.moments import llm_keys
+    llm_keys.save_keys(gemini_key="gem-keep", openai_key="oai-keep")
+    r = client.post("/api/llm", json={"gemini_key": "gem-new",
+                                      "openai_key": "", "provider": "auto"})
+    assert r.get_json()["ok"] is True
+    stored = llm_keys.load_keys()
+    assert stored["gemini_key"] == "gem-new"
+    assert stored["openai_key"] == "oai-keep"  # blank did NOT wipe it
+
+
+def test_api_llm_forget_clears_one_key(client):
+    from core.moments import llm_keys
+    llm_keys.save_keys(gemini_key="gem-keep", openai_key="oai-keep")
+    r = client.post("/api/llm/forget", json={"which": "gemini"})
+    assert r.get_json()["ok"] is True
+    stored = llm_keys.load_keys()
+    assert stored["gemini_key"] == "" and stored["openai_key"] == "oai-keep"
+    r = client.post("/api/llm/forget", json={"which": "bogus"})
+    assert r.status_code == 400
+
+
+def test_api_meta_reports_version_and_ffmpeg(client):
+    r = client.get("/api/meta")
+    j = r.get_json()
+    assert j["ok"] is True
+    from core.version import __version__
+    assert j["version"] == __version__
+    assert "found" in j["ffmpeg"] and "guidance" in j["ffmpeg"]
+
+
+# ------------------------------------------------------- jobs survive restart
+
+def test_load_jobs_reloads_persisted_jobs(client):
+    import json
+    import app as app_mod
+    jd = app_mod.jobs_dir()
+    job = {"id": "abc123", "status": "done", "progress": 100,
+           "clips": [{"file": "x.mp4"}], "url": "https://youtu.be/x"}
+    (jd / "abc123.json").write_text(json.dumps(job), encoding="utf-8")
+    with app_mod._jobs_lock:
+        app_mod._jobs.pop("abc123", None)
+    app_mod._load_jobs()
+    with app_mod._jobs_lock:
+        loaded = app_mod._jobs.get("abc123")
+    assert loaded is not None and loaded["status"] == "done"
+    assert loaded["clips"][0]["file"] == "x.mp4"
+
+
+def test_load_jobs_marks_inflight_as_interrupted(client):
+    import json
+    import app as app_mod
+    jd = app_mod.jobs_dir()
+    job = {"id": "zzz999", "status": "running", "progress": 42, "clips": []}
+    (jd / "zzz999.json").write_text(json.dumps(job), encoding="utf-8")
+    with app_mod._jobs_lock:
+        app_mod._jobs.pop("zzz999", None)
+    app_mod._load_jobs()
+    with app_mod._jobs_lock:
+        loaded = app_mod._jobs.get("zzz999")
+    assert loaded["status"] == "interrupted"
+    assert "restart" in loaded["error"].lower()

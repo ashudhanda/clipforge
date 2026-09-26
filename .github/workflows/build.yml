@@ -50,12 +50,37 @@ jobs:
       - name: PyInstaller build
         run: pyinstaller packaging/clipforge.spec
 
+      - name: Verify FFmpeg bundled (Windows)
+        if: matrix.ffmpeg == 'win'
+        shell: powershell
+        run: |
+          $ff = "dist/ClipForge/_internal/ffmpeg.exe"
+          $fp = "dist/ClipForge/_internal/ffprobe.exe"
+          if (-not (Test-Path $ff)) { throw "FATAL: $ff missing from bundle" }
+          if (-not (Test-Path $fp)) { throw "FATAL: $fp missing from bundle" }
+          & $ff -hide_banner -version | Select-Object -First 1
+          & $fp -hide_banner -version | Select-Object -First 1
+          Write-Host "OK: ffmpeg + ffprobe present and executable in bundle"
+
+      - name: Verify FFmpeg bundled (macOS/Linux)
+        if: matrix.ffmpeg != 'win'
+        run: |
+          set -e
+          FF=$(find dist -name ffmpeg -type f | head -1)
+          FP=$(find dist -name ffprobe -type f | head -1)
+          [ -n "$FF" ] || { echo "FATAL: ffmpeg missing from bundle"; exit 1; }
+          [ -n "$FP" ] || { echo "FATAL: ffprobe missing from bundle"; exit 1; }
+          "$FF" -hide_banner -version | head -1
+          "$FP" -hide_banner -version | head -1
+          echo "OK: ffmpeg + ffprobe present and executable in bundle"
+
       - name: Inno Setup installer (Windows)
         if: matrix.ffmpeg == 'win'
         shell: powershell
         run: |
           choco install innosetup -y
-          iscc packaging/installer.iss
+          $ver = python -c "from core.version import __version__; print(__version__)"
+          iscc /DAppVersion=$ver packaging/installer.iss
           Move-Item dist/ClipForge-Setup-*.exe dist/ClipForge-Setup.exe -Force
 
       - name: DMG (macOS)

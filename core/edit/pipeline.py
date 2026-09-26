@@ -91,7 +91,10 @@ def build_short(
 
         # 2. Crop (face-aware, full-bleed 9:16 — never letterboxed).
         crop_p = _crop.compute_crop(source_video, start, end)
-        assert _crop.is_full_bleed(crop_p), "crop must stay exactly 9:16"
+        if not _crop.is_full_bleed(crop_p):
+            raise RuntimeError(
+                f"internal error: crop is not exactly 9:16 full-bleed: {crop_p!r}"
+            )
         log.info(
             "crop: %dx%d @ (%d,%d) face_guided=%s",
             crop_p["w"], crop_p["h"], crop_p["x"], crop_p["y"],
@@ -151,10 +154,17 @@ def build_short(
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def _to_relative(words: list, clip_start: float) -> list[dict]:
+def _to_relative(words: list, clip_start: float,
+                absolute: bool | None = None) -> list[dict]:
     """Shift word timings to clip-relative seconds.
 
-    Auto-detects absolute source-timeline words (any start >= clip_start).
+    ``absolute=None`` (default) auto-detects: words already near 0 are
+    treated as clip-relative, words on the source timeline (>= clip_start)
+    are shifted. The shift is validated — if shifting would push words
+    clearly negative, the words were already relative and are returned
+    untouched (this guards the old ``any(start >= clip_start)`` heuristic
+    against misfiring on relative words that start after clip_start).
+    Pass ``absolute=True/False`` explicitly when the caller knows.
     """
     norm: list[dict] = []
     for w in words:
@@ -162,7 +172,21 @@ def _to_relative(words: list, clip_start: float) -> list[dict]:
         we = w["end"] if isinstance(w, dict) else w.end
         text = w["text"] if isinstance(w, dict) else w.text
         norm.append({"start": ws, "end": we, "text": text})
-    if norm and any(w["start"] >= clip_start - 1e-6 for w in norm):
+    if not norm or clip_start <= 1e-6:
+        return norm
+    if absolute is None:
+        shifted = [
+            {"start": w["start"] - clip_start,
+             "end": w["end"] - clip_start,
+             "text": w["text"]}
+            for w in norm
+        ]
+        # A genuine absolute→relative shift lands at ~0-based times.
+        # Already-relative words would go (mostly) negative instead.
+        if all(w["start"] >= -1.0 for w in shifted):
+            return shifted
+        return norm
+    if absolute:
         return [
             {"start": w["start"] - clip_start,
              "end": w["end"] - clip_start,

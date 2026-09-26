@@ -54,12 +54,21 @@ def upload_clip(clip: dict, mode: str = "api") -> dict:
                 "note": "YouTube isn't connected — connect it in the "
                         "dashboard, or upload manually via Studio."}
     try:
+        from core import config as _cfg
+
+        privacy = _cfg.load_config().get("upload_privacy", "unlisted")
+    except Exception:
+        privacy = "unlisted"
+    if privacy not in ("public", "unlisted", "private"):
+        log.warning("ignoring invalid upload_privacy %r from config", privacy)
+        privacy = "unlisted"
+    try:
         result = upload_short(
             _clip_file(clip),
             title=clip.get("title") or "Untitled clip",
             description=clip.get("description") or "",
             hashtags=clip.get("hashtags") or [],
-            privacy="public",
+            privacy=privacy,
         )
         return {"ok": True, "method": "api", **result}
     except QuotaExceeded as e:

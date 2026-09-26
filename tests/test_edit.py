@@ -258,3 +258,83 @@ def test_build_short_missing_source():
         build_short("/tmp/does-not-exist.mp4",
                     {"start": 0, "end": 2, "transcript": []},
                     os.path.join(TMP, "x.mp4"))
+
+
+# --- _to_relative (audit fix) ---
+
+def test_to_relative_absolute_words_shifted():
+    from core.edit.pipeline import _to_relative
+    words = [{"start": 120.5, "end": 121.0, "text": "hi"},
+             {"start": 121.5, "end": 122.0, "text": "there"}]
+    out = _to_relative(words, 120.0)
+    assert out[0]["start"] == pytest.approx(0.5)
+    assert out[1]["end"] == pytest.approx(2.0)
+
+
+def test_to_relative_already_relative_untouched():
+    from core.edit.pipeline import _to_relative
+    words = [{"start": 0.5, "end": 1.0, "text": "hi"}]
+    out = _to_relative(words, 120.0)
+    assert out[0]["start"] == pytest.approx(0.5)
+
+
+def test_to_relative_ambiguous_case_follows_shift_if_sane():
+    # Mathematically ambiguous: relative words starting at 6.0 with
+    # clip_start=5.0 are indistinguishable from absolute words at 6.0.
+    # Documented rule: shift when the result lands at sane (~0-based) times.
+    # Callers that know the provenance should pass absolute= explicitly.
+    from core.edit.pipeline import _to_relative
+    words = [{"start": 6.0, "end": 6.5, "text": "late"}]
+    out = _to_relative(words, 5.0)
+    assert out[0]["start"] == pytest.approx(1.0)
+
+
+def test_to_relative_never_produces_wildly_negative_times():
+    # A stray word far below clip_start must not corrupt the whole list.
+    from core.edit.pipeline import _to_relative
+    words = [{"start": 0.5, "end": 1.0, "text": "ok"},
+             {"start": 200.0, "end": 201.0, "text": "stray"}]
+    out = _to_relative(words, 120.0)
+    assert all(w["start"] >= 0 for w in out)
+
+
+def test_to_relative_explicit_absolute_flag():
+    from core.edit.pipeline import _to_relative
+    words = [{"start": 10.0, "end": 11.0, "text": "x"}]
+    out = _to_relative(words, 10.0, absolute=True)
+    assert out[0]["start"] == pytest.approx(0.0)
+    out = _to_relative(words, 10.0, absolute=False)
+    assert out[0]["start"] == pytest.approx(10.0)
+
+
+def test_to_relative_zero_clip_start_noop():
+    from core.edit.pipeline import _to_relative
+    words = [{"start": 3.0, "end": 4.0, "text": "x"}]
+    assert _to_relative(words, 0.0)[0]["start"] == pytest.approx(3.0)
+
+
+# --- displayed_dims ffprobe-missing (audit fix) ---
+
+def test_displayed_dims_no_ffprobe_raises_runtimeerror(monkeypatch):
+    from core.edit import crop
+    monkeypatch.setattr(crop, "_ffprobe_path", lambda: None)
+    monkeypatch.setattr(crop, "_ffmpeg", lambda: "/bin/true")
+    import subprocess as sp
+    monkeypatch.setattr(sp, "run", lambda *a, **k: sp.CompletedProcess(a[0], 0, b"", b""))
+    import os as _os
+    monkeypatch.setattr(_os.path, "exists", lambda p: True)
+    with pytest.raises(RuntimeError, match="ffprobe not found"):
+        crop.displayed_dims("/tmp/x.mp4")
+
+
+# --- ass_filter fontsdir (audit fix) ---
+
+def test_ass_filter_includes_fontsdir_when_bundled(tmp_path, monkeypatch):
+    from core.edit import captions
+    from core import paths as p
+    fd = tmp_path / "assets" / "fonts"
+    fd.mkdir(parents=True)
+    (fd / "NotoSans-Variable.ttf").write_text("fake")
+    monkeypatch.setattr(p, "resource_path", lambda *a: tmp_path.joinpath(*a))
+    f = captions.ass_filter("/tmp/cap.ass")
+    assert "fontsdir=" in f

@@ -10,10 +10,17 @@ Set-Location $OutDir
 $headers = @{ "User-Agent" = "clipforge-installer-build" }
 if ($env:GITHUB_TOKEN) { $headers["Authorization"] = "Bearer $($env:GITHUB_TOKEN)" }
 
-Write-Host "-> finding latest BtbN FFmpeg-Builds release..."
-$rel = Invoke-RestMethod -Headers $headers "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest"
+# Pinned BtbN build tag — NOT "latest". The rolling master changes daily
+# (fresh unsigned binaries = maximum antivirus false-positive risk and
+# zero reproducibility). Bump deliberately after testing a new build.
+# Override: $env:FFMPEG_BUILD_TAG
+$BuildTag = $env:FFMPEG_BUILD_TAG
+if (-not $BuildTag) { $BuildTag = "autobuild-2026-09-25-15-37" }
+
+Write-Host "-> finding BtbN FFmpeg-Builds release for tag $BuildTag ..."
+$rel = Invoke-RestMethod -Headers $headers "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/$BuildTag"
 $asset = $rel.assets | Where-Object { $_.name -match "win64-lgpl\.zip$" } | Select-Object -First 1
-if (-not $asset) { throw "no matching win64-lgpl static asset found" }
+if (-not $asset) { throw "no matching win64-lgpl static asset found for tag $BuildTag" }
 
 Write-Host "-> downloading $($asset.name)..."
 Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "package.zip"

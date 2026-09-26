@@ -25,6 +25,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from core.config import config_dir
+from core.paths import ffprobe_path as _ffprobe_path
 
 from . import oauth as oauth_mod
 
@@ -174,9 +175,12 @@ def _is_portrait(video_path: str) -> bool | None:
     Dashboard-built Shorts are always 1080x1920; this is a safety net
     for foreign files, never a blocker.
     """
+    ffprobe = _ffprobe_path()
+    if not ffprobe:
+        return None
     try:
         out = subprocess.run(
-            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+            [ffprobe, "-v", "error", "-select_streams", "v:0",
              "-show_entries", "stream=width,height", "-of", "json",
              video_path],
             capture_output=True, text=True, timeout=30)

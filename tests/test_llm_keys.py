@@ -74,10 +74,16 @@ def test_save_bad_provider_raises(cfg_home):
         llm_keys.save_keys(provider="wat")
 
 
-def test_empty_string_clears_key(cfg_home):
-    llm_keys.save_keys(gemini_key="k")
-    llm_keys.save_keys(gemini_key="")
-    assert llm_keys.load_keys()["gemini_key"] == ""
+def test_forget_key_clears_only_that_key(cfg_home):
+    llm_keys.save_keys(gemini_key="gem-k", openai_key="oai-k")
+    llm_keys.forget_key("gemini")
+    out = llm_keys.load_keys()
+    assert out["gemini_key"] == "" and out["openai_key"] == "oai-k"
+
+
+def test_forget_key_bad_which_raises(cfg_home):
+    with pytest.raises(ValueError):
+        llm_keys.forget_key("anthropic")
 
 
 # ------------------------------------------------------------ get_provider

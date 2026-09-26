@@ -51,7 +51,12 @@ def save_keys(
     openai_key: str = "",
     provider: str = "auto",
 ) -> Path:
-    """Write keys with owner-only (0o600) permissions. Empty string clears a key."""
+    """Write keys with owner-only (0o600) permissions.
+
+    Writes exactly what it is given (use ``forget_key`` to clear one key).
+    The dashboard API (``POST /api/llm``) treats blank fields as "keep the
+    stored key", so blanks never reach this function as clears.
+    """
     if provider not in VALID_PROVIDERS:
         raise ValueError(f"provider must be one of {VALID_PROVIDERS}")
     p = keys_path()
@@ -83,3 +88,21 @@ def clear_keys() -> None:
         pass
     except OSError:
         pass
+
+
+def forget_key(which: str) -> None:
+    """Forget one key (``"gemini"`` or ``"openai"``), keeping the other.
+
+    This is the ONLY supported way to clear a single key: saving with a
+    blank field preserves the stored key (see ``POST /api/llm``).
+    """
+    which = (which or "").strip().lower()
+    if which not in ("gemini", "openai"):
+        raise ValueError('which must be "gemini" or "openai"')
+    stored = load_keys()
+    stored[f"{which}_key"] = ""
+    save_keys(
+        gemini_key=stored["gemini_key"],
+        openai_key=stored["openai_key"],
+        provider=stored["provider"],
+    )

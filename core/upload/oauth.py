@@ -129,6 +129,14 @@ def _run_consent_flow(client_config: dict):
     """First-time browser consent (blocking — call from a thread)."""
     from google_auth_oauthlib.flow import InstalledAppFlow
 
+    if "installed" not in client_config:
+        kind = "web" if "web" in client_config else "unknown"
+        raise OAuthNotConfigured(
+            f"Your Google OAuth client is the {kind!r} type, but ClipForge "
+            "needs a **Desktop app** client. In Google Cloud Console, create "
+            "a new OAuth client ID of type 'Desktop app', download its JSON, "
+            "and load it via the dashboard's YouTube setup (docs/YOUTUBE_SETUP.md)."
+        )
     flow = InstalledAppFlow.from_client_config(
         client_config, scopes=[YOUTUBE_UPLOAD_SCOPE])
     # Explicit 127.0.0.1 (audit lesson): some browsers resolve

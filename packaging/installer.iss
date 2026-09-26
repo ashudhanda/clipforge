@@ -1,6 +1,10 @@
 ; ClipForge Windows installer (Inno Setup 6)
-; Build:  iscc packaging\installer.iss   (run after pyinstaller)
-#define AppVersion "0.1.0"
+; Build:  iscc /DAppVersion=<ver> packaging\installer.iss   (run after pyinstaller)
+; CI passes /DAppVersion from core/version.py — the fallback below is only
+; for manual builds so the version never silently drifts again.
+#ifndef AppVersion
+#define AppVersion "0.0.0-dev"
+#endif
 
 [Setup]
 AppName=ClipForge

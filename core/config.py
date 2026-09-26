@@ -35,7 +35,12 @@ DEFAULTS = {
     "times": ["09:00", "18:00"],  # HH:MM upload/build times
     "autopilot": False,
     "quality_gate": 50,      # autopilot skips clips scoring below this
+    # Default YouTube privacy for API uploads (public|unlisted|private).
+    # "unlisted" is the safe default: nothing goes public by accident.
+    "upload_privacy": "unlisted",
 }
+
+UPLOAD_PRIVACY = ("public", "unlisted", "private")
 
 # Friendly quality-gate presets shown in the wizard. Stored as numbers.
 QUALITY_GATE_PRESETS = {
@@ -136,6 +141,9 @@ def validate_config(cfg: dict) -> list[str]:
         qg = -1
     if not 0 <= qg <= 100:
         problems.append("Quality gate must be low, medium, high, or a number 0–100.")
+
+    if cfg.get("upload_privacy", "unlisted") not in UPLOAD_PRIVACY:
+        problems.append("Upload privacy must be public, unlisted or private.")
 
     return problems
 

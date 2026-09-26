@@ -15,10 +15,15 @@ AUTH=()
 if [ -n "${GITHUB_TOKEN:-}" ]; then AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN"); fi
 
 PLATFORM="${1:-linux64}"
+# Pinned BtbN build tag — NOT "latest". The rolling master changes daily
+# (fresh unsigned binaries = maximum antivirus false-positive risk and
+# zero reproducibility). Bump deliberately after testing a new build.
+# Override: FFMPEG_BUILD_TAG=autobuild-... ./fetch-ffmpeg.sh
+BUILD_TAG="${FFMPEG_BUILD_TAG:-autobuild-2026-09-25-15-37}"
 case "$PLATFORM" in
   linux64)
-    echo "-> finding latest BtbN FFmpeg-Builds release..."
-    API="https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest"
+    echo "-> finding BtbN FFmpeg-Builds release for tag $BUILD_TAG..."
+    API="https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/$BUILD_TAG"
     # NOTE: match the *static* (non-shared) build — the -shared variant needs
     # DLLs/.so files that we do not bundle. Python avoids grep/head SIGPIPE
     # races under `set -o pipefail`.
@@ -34,7 +39,7 @@ for a in data.get('assets', []):
         print(a['browser_download_url'])
         break
 ")
-    if [ -z "$URL" ]; then echo "no matching linux64-lgpl asset found"; exit 1; fi
+    if [ -z "$URL" ]; then echo "no matching linux64-lgpl asset found for tag $BUILD_TAG"; exit 1; fi
 
     echo "-> downloading $(basename "$URL")..."
     curl -fSL -o package.arc "$URL"

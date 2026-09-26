@@ -196,7 +196,11 @@
     </div>
     <button class="bigbtn" id="llmSave">Save AI keys 💾</button>
     <div class="keystat" id="llmMsg" style="margin-top:8px"></div>
-    <div class="keystat" style="margin-top:6px">Free Gemini key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--acc2)">aistudio.google.com/apikey</a> · Keys stay on your machine in a locked file — never in config.json, never sent anywhere except Google/OpenAI.</div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="ghostbtn" id="forgetGem" title="Delete the saved Gemini key">Forget Gemini key 🗑️</button>
+      <button class="ghostbtn" id="forgetOai" title="Delete the saved OpenAI key">Forget OpenAI key 🗑️</button>
+    </div>
+    <div class="keystat" style="margin-top:6px">Free Gemini key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--acc2)">aistudio.google.com/apikey</a> · Keys stay on your machine in a locked file — never in config.json, never sent anywhere except Google/OpenAI. Leaving a field blank when saving keeps the saved key.</div>
   </div>
 
   <div class="card" id="settingsCard">
@@ -222,6 +226,14 @@
         <input type="number" id="setCount" min="1" max="10" step="1"></div>
       <div><label class="lbl">Build/upload times <span class="keystat">(HH:MM, comma-separated, one per clip)</span></label>
         <input type="text" id="setTimes" placeholder="09:00, 18:00"></div>
+    </div>
+    <div class="krow two" style="margin-top:10px">
+      <div><label class="lbl">YouTube upload privacy <span class="keystat">(API uploads)</span></label><select id="setPrivacy">
+        <option value="unlisted">Unlisted — only people with the link</option>
+        <option value="public">Public — everyone can watch</option>
+        <option value="private">Private — only you</option>
+      </select></div>
+      <div><label class="lbl">FFmpeg status</label><div class="keystat" id="ffStatus" style="padding:11px 0">checking…</div></div>
     </div>
     <button class="bigbtn" id="setSave" style="margin-top:12px">Save settings 💾</button>
     <div class="keystat" id="setMsg" style="margin-top:8px"></div>
@@ -286,6 +298,9 @@ async function init(){
   $("makeBtn").onclick = makeClips;
   $("discBtn").onclick = startDiscover;
   $("llmSave").onclick = saveLLMKeys;
+  $("forgetGem").onclick = ()=>forgetKey("gemini");
+  $("forgetOai").onclick = ()=>forgetKey("openai");
+  refreshMeta();
   $("setSave").onclick = saveSettings;
   $("tourBtn").onclick = startTour;
   $("tourNext").onclick = tourNext;
@@ -313,6 +328,7 @@ function renderSettings(){
   $("setGate").value = CFG.quality_gate ?? 50;
   $("setCount").value = CFG.daily_count ?? 2;
   $("setTimes").value = (CFG.times||[]).join(", ");
+  $("setPrivacy").value = CFG.upload_privacy || "unlisted";
   $("setMsg").textContent = "";
 }
 function toggleCustomRow(){
@@ -329,6 +345,7 @@ async function saveSettings(){
     daily_count: parseInt($("setCount").value||"2",10),
     times: $("setTimes").value.split(",").map(s=>s.trim()).filter(Boolean),
     quality_gate: parseInt($("setGate").value||"50",10),
+    upload_privacy: $("setPrivacy").value,
   };
   msg.textContent = "Saving…";
   try{
@@ -410,6 +427,38 @@ async function saveLLMKeys(){
     msg.textContent = "Saved ✅ — new clips will use it.";
   }catch(e){ msg.textContent = "Error: "+e.message; }
   refreshLLM();
+}
+
+async function forgetKey(which){
+  const msg = $("llmMsg");
+  if(!confirm(`Forget the saved ${which} key? This can't be undone.`)) return;
+  msg.textContent = "Forgetting…";
+  try{
+    const r = await fetch("/api/llm/forget",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify({which})});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||"forget failed");
+    msg.textContent = `✅ ${which} key forgotten.`;
+  }catch(e){ msg.textContent = "Error: "+e.message; }
+  refreshLLM();
+}
+
+async function refreshMeta(){
+  try{
+    const m = await fetch("/api/meta").then(r=>r.json());
+    const ff = m.ffmpeg || {};
+    const el = $("ffStatus");
+    if(ff.found){
+      const src = {env:"env override",bundled:"bundled with app",repo:"repo packaging/bin",system:"system PATH"}[ff.ffmpeg.source] || ff.ffmpeg.source;
+      el.innerHTML = `✅ <b>Ready</b> <span class="keystat">(${escapeHtml(src)})</span>`;
+      el.title = (ff.ffmpeg.version||"") + "\n" + (ff.ffmpeg.path||"");
+    }else{
+      el.innerHTML = `❌ <b>Missing</b> — clips can't be built`;
+      el.title = ff.guidance || "";
+    }
+    const fv = $("footVer");
+    if(fv) fv.textContent = "v" + (m.version || "?");
+  }catch(e){ const el=$("ffStatus"); if(el) el.textContent = "couldn't reach server"; }
 }
 
 async function makeClips(){
@@ -764,5 +813,6 @@ async function restyle(sel){
 fetch("/api/styles").then(r=>r.json()).then(s=>_stylesCache=s);
 init();
 </script>
+<div style="text-align:center;color:var(--dim);font-size:12px;padding:18px 0 26px" class="keystat">ClipForge <span id="footVer">…</span> · runs 100% on your machine</div>
 </body>
 </html>

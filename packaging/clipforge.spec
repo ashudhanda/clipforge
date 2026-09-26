@@ -12,10 +12,22 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 
+# --- version: single source of truth is core/version.py ----------------------
+sys.path.insert(0, ROOT)
+try:
+    from core.version import __version__ as APP_VERSION
+except Exception:
+    APP_VERSION = "0.0.0-dev"
+
 # --- bundled data -----------------------------------------------------------
 datas = [
     (os.path.join(ROOT, "templates"), "templates"),
 ]
+# Caption fonts (assets/fonts/) — skip when absent so a fresh checkout
+# without the font files still builds (captions then use system fonts).
+_fonts = os.path.join(ROOT, "assets", "fonts")
+if os.path.isdir(_fonts):
+    datas.append((_fonts, os.path.join("assets", "fonts")))
 # previews/ only exists once style-preview videos are generated locally;
 # skip it when absent so the build never breaks on a fresh checkout.
 _previews = os.path.join(ROOT, "previews")
@@ -110,6 +122,6 @@ if sys.platform == "darwin":
         bundle_identifier="tech.aditiweb.clipforge",
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "0.1.0",
+            "CFBundleShortVersionString": APP_VERSION,
         },
     )

@@ -230,14 +230,33 @@ def write_ass(words: list[dict], style: str, out_path: str) -> str:
     return out_path
 
 
-def ass_filter(ass_path: str) -> str:
-    """Render the libass burn-in as an ffmpeg video-filter string."""
-    # Escape for ffmpeg filter parsing (: ' [ ] need backslash-escaping).
-    esc = (
-        ass_path.replace("\\", "\\\\")
+def _ff_escape(s: str) -> str:
+    """Escape a path for ffmpeg filter parsing (: ' [ ] \\)."""
+    return (
+        s.replace("\\", "\\\\")
         .replace(":", "\\:")
         .replace("'", "\\'")
         .replace("[", "\\[")
         .replace("]", "\\]")
     )
-    return f"ass='{esc}'"
+
+
+def fonts_dir() -> str | None:
+    """Bundled OFL fonts dir (assets/fonts), or None when absent.
+
+    Passed to ffmpeg's ``ass`` filter as ``fontsdir`` so captions render
+    with the same fonts on every machine — even without system fonts.
+    """
+    from core.paths import resource_path
+
+    d = resource_path("assets", "fonts")
+    return str(d) if d.is_dir() else None
+
+
+def ass_filter(ass_path: str) -> str:
+    """Render the libass burn-in as an ffmpeg video-filter string."""
+    filt = f"ass='{_ff_escape(ass_path)}'"
+    fd = fonts_dir()
+    if fd:
+        filt += f":fontsdir='{_ff_escape(fd)}'"
+    return filt
