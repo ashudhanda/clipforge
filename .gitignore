@@ -18,11 +18,14 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
-# Local media / previews (large, machine-specific)
-previews/
+# Local media (large, machine-specific) — EXCEPT the 9 caption-style preview
+# clips shipped with the app (dashboard needs them; PyInstaller bundles them)
+previews/*
+!previews/style_preview_*.mp4
 clips/
 downloads/
 *.mp4
+!previews/style_preview_*.mp4
 *.mkv
 *.webm
 !tests/fixtures/**
