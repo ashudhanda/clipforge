@@ -35,6 +35,10 @@ log = logging.getLogger("clipforge.upload.youtube_api")
 # history): videos.insert draws from its OWN bucket — 100 calls/day —
 # separate from the 10,000-unit general pool. Old 1,600-unit math is dead.
 MAX_UPLOADS_PER_DAY = 100
+# YouTube Data API quota costs (published): videos.insert = 1,600 units,
+# daily project quota = 10,000 units.
+UNITS_PER_UPLOAD = 1600
+DAILY_UNIT_LIMIT = 10000
 QUOTA_TZ = ZoneInfo("America/Los_Angeles")  # YouTube quota day = Pacific
 QUOTA_FILE = "quota.json"
 
@@ -97,9 +101,17 @@ class QuotaTracker:
         return self.remaining() > 0
 
     def status(self) -> dict:
-        return {"used": self.used_today(), "limit": MAX_UPLOADS_PER_DAY,
+        used = self.used_today()
+        return {"used": used, "limit": MAX_UPLOADS_PER_DAY,
                 "remaining": self.remaining(),
-                "resets": "midnight Pacific Time"}
+                "resets": "midnight Pacific Time",
+                # YouTube Data API quota is 10,000 units/day and a
+                # videos.insert costs 1,600 units. YouTube offers no
+                # quota-usage endpoint, so this is an honest estimate
+                # from the uploads this app performed today.
+                "units_per_upload": UNITS_PER_UPLOAD,
+                "units_used": used * UNITS_PER_UPLOAD,
+                "units_limit": DAILY_UNIT_LIMIT}
 
     def check_or_raise(self) -> None:
         if not self.can_upload():

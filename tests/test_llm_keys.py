@@ -32,14 +32,15 @@ def cfg_home(tmp_path, monkeypatch):
 
 def test_load_missing_file_returns_blanks(cfg_home):
     assert llm_keys.load_keys() == {
-        "gemini_key": "", "openai_key": "", "provider": "auto"}
+        "gemini_key": "", "openai_key": "", "provider": "auto", "model": ""}
 
 
 def test_save_load_roundtrip(cfg_home):
     llm_keys.save_keys(gemini_key="  AIza123  ", openai_key="sk-abc",
-                       provider="openai")
+                       provider="openai", model="gpt-4o-mini")
     assert llm_keys.load_keys() == {
-        "gemini_key": "AIza123", "openai_key": "sk-abc", "provider": "openai"}
+        "gemini_key": "AIza123", "openai_key": "sk-abc",
+        "provider": "openai", "model": "gpt-4o-mini"}
 
 
 def test_save_creates_0600_file(cfg_home):

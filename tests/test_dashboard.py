@@ -442,3 +442,119 @@ def test_load_jobs_marks_inflight_as_interrupted(client):
         loaded = app_mod._jobs.get("zzz999")
     assert loaded["status"] == "interrupted"
     assert "restart" in loaded["error"].lower()
+
+
+# ------------------------------------------------------- clip metadata editing
+
+def _seed_job_with_clip(app_mod, job_id="meta1"):
+    job = {
+        "id": job_id, "status": "done", "progress": 100,
+        "url": "https://youtu.be/x", "niche": "ai-news",
+        "clips": [{
+            "file": "x.mp4", "start": 0, "end": 30,
+            "title": "Old title", "description": "Old desc",
+            "hashtags": ["#Old"], "score": 80,
+        }],
+    }
+    with app_mod._jobs_lock:
+        app_mod._jobs[job_id] = job
+    return job_id
+
+
+def test_clip_metadata_partial_update(client):
+    import app as app_mod
+    jid = _seed_job_with_clip(app_mod)
+    try:
+        r = client.post(f"/api/jobs/{jid}/clips/0/metadata",
+                        json={"title": "New title", "hashtags": "#a #b, c"})
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["ok"] is True
+        assert body["clip"]["title"] == "New title"
+        assert body["clip"]["hashtags"] == ["#a", "#b", "#c"]
+        # untouched fields preserved
+        assert body["clip"]["description"] == "Old desc"
+        with app_mod._jobs_lock:
+            assert app_mod._jobs[jid]["clips"][0]["title"] == "New title"
+    finally:
+        with app_mod._jobs_lock:
+            app_mod._jobs.pop(jid, None)
+
+
+def test_clip_metadata_not_found(client):
+    r = client.post("/api/jobs/nope/clips/0/metadata", json={"title": "x"})
+    assert r.status_code == 404
+    import app as app_mod
+    jid = _seed_job_with_clip(app_mod, "meta2")
+    try:
+        r = client.post(f"/api/jobs/{jid}/clips/9/metadata", json={"title": "x"})
+        assert r.status_code == 404
+    finally:
+        with app_mod._jobs_lock:
+            app_mod._jobs.pop(jid, None)
+
+
+# ------------------------------------------------------- LLM model selection
+
+def test_llm_model_save_and_status_roundtrip(client):
+    r = client.post("/api/llm", json={"provider": "gemini", "model": "gemini-2.0-flash"})
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    r = client.get("/api/llm")
+    j = r.get_json()
+    assert j["model"] == "gemini-2.0-flash"
+    assert j["provider"] == "gemini"
+    # clearing back to default
+    r = client.post("/api/llm", json={"model": ""})
+    assert r.get_json()["ok"] is True
+    assert client.get("/api/llm").get_json()["model"] == ""
+
+
+def test_llm_model_rejects_unknown_id(client):
+    r = client.post("/api/llm", json={"model": "gpt-99-turbo"})
+    assert r.status_code == 400
+    assert r.get_json()["ok"] is False
+
+
+def test_llm_model_pin_reorders_provider_models(cfg_home, monkeypatch):
+    from core.moments import llm as llm_mod
+    from core.moments import llm_keys as keys_mod
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    keys_mod.save_keys(provider="gemini", model="gemini-1.5-flash")
+    p = llm_mod.get_provider()
+    assert p.name == "gemini"
+    assert p.models[0] == "gemini-1.5-flash"  # pinned first
+    assert set(p.models) == set(llm_mod.DEFAULT_GEMINI_MODELS)  # fallbacks kept
+    keys_mod.save_keys(provider="gemini", model="")  # reset
+    p2 = llm_mod.get_provider()
+    assert p2.models[0] == llm_mod.DEFAULT_GEMINI_MODELS[0]
+
+
+def test_discover_accepts_niche_focus_override(client, monkeypatch):
+    seen = {}
+    import app as app_mod
+    monkeypatch.setattr(app_mod, "discover_for_autopilot",
+                        lambda cfg, per_niche=3: (seen.update(cfg=cfg), {}))
+    r = client.post("/api/discover", json={"niches": ["ai-news"]})
+    assert r.status_code == 200
+    run_id = r.get_json()["run_id"]
+    # wait for background thread
+    import time
+    for _ in range(50):
+        if app_mod._disc_runs[run_id]["status"] != "running":
+            break
+        time.sleep(0.1)
+    assert seen["cfg"]["niches"] == ["ai-news"]
+
+
+def test_discover_rejects_unknown_niche(client):
+    r = client.post("/api/discover", json={"niches": ["not-a-niche"]})
+    assert r.status_code == 400
+
+
+def test_discover_custom_niche_needs_name(client, cfg_home):
+    cfg = cfg_mod.load_config()
+    cfg["custom_niche"] = ""
+    cfg_mod.save_config(cfg)
+    r = client.post("/api/discover", json={"niches": ["custom"]})
+    assert r.status_code == 400

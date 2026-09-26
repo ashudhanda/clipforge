@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import time
 import traceback
@@ -427,6 +428,7 @@ def api_llm_status():
         "gemini_set": bool(os.environ.get("GEMINI_API_KEY") or stored["gemini_key"]),
         "openai_set": bool(os.environ.get("OPENAI_API_KEY") or stored["openai_key"]),
         "provider": stored["provider"],
+        "model": stored.get("model", ""),
         "models": {
             "gemini": list(llm_mod.DEFAULT_GEMINI_MODELS),
             "openai": list(llm_mod.DEFAULT_OPENAI_MODELS),
@@ -441,6 +443,7 @@ def api_llm_save():
 
     Blank fields PRESERVE the already-stored key — they never wipe it.
     To forget a key, use POST /api/llm/forget with {"which": "gemini"|"openai"}.
+    Accepts an optional "model" (a known model id, or "" for provider default).
     """
     data = request.get_json(force=True) or {}
     try:
@@ -451,10 +454,18 @@ def api_llm_save():
             gemini_key = stored["gemini_key"]
         if not openai_key:
             openai_key = stored["openai_key"]
+        if "model" in data:
+            model = str(data.get("model", "") or "").strip()
+            known = list(llm_mod.DEFAULT_GEMINI_MODELS) + list(llm_mod.DEFAULT_OPENAI_MODELS)
+            if model and model not in known:
+                return jsonify({"ok": False, "error": "Unknown model id."}), 400
+        else:
+            model = stored.get("model", "")
         llm_keys_mod.save_keys(
             gemini_key=gemini_key,
             openai_key=openai_key,
             provider=str(data.get("provider", "") or "").strip() or stored["provider"],
+            model=model,
         )
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
@@ -479,7 +490,16 @@ def api_meta():
     from core.version import __version__
 
     return jsonify({"ok": True, "version": __version__,
-                    "ffmpeg": ffmpeg_status()})
+                    "ffmpeg": ffmpeg_status(),
+                    "dirs": {"app": str(app_dir()),
+                             "clips": str(clips_dir()),
+                             "jobs": str(jobs_dir())}})
+
+
+@app.route("/api/settings/defaults", methods=["GET"])
+def api_settings_defaults():
+    """Factory defaults (single source of truth lives in core/config.py)."""
+    return jsonify(cfg_mod.default_config())
 
 
 @app.route("/api/settings", methods=["POST"])
@@ -647,6 +667,38 @@ def _clip_id_ok(clip_id: str) -> bool:
     return bool(clip_id) and all(c.isalnum() or c == "_" for c in clip_id)
 
 
+@app.route("/api/jobs/<job_id>/clips/<int:idx>/metadata", methods=["POST"])
+def api_clip_metadata(job_id, idx):
+    """Edit a clip's title/description/hashtags (e.g. from the dashboard).
+
+    Partial updates: only the fields present in the JSON body are changed.
+    Hashtags accept a "#a #b" string or a list. Persisted with the job.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        if not job or idx < 0 or idx >= len(job.get("clips", [])):
+            return jsonify({"ok": False, "error": "Clip not found."}), 404
+        clip = job["clips"][idx]
+        if "title" in data:
+            clip["title"] = str(data["title"] or "").strip()[:100]
+        if "description" in data:
+            clip["description"] = str(data["description"] or "").strip()[:5000]
+        if "hashtags" in data:
+            tags = data["hashtags"]
+            if isinstance(tags, str):
+                tags = re.split(r"[,\s]+", tags)
+            tags = [str(t).strip() for t in (tags or []) if str(t).strip()]
+            tags = [t if t.startswith("#") else f"#{t}" for t in tags]
+            clip["hashtags"] = tags[:30]
+    _persist_job(job_id)
+    return jsonify({"ok": True, "clip": {
+        "title": clip.get("title"),
+        "description": clip.get("description"),
+        "hashtags": clip.get("hashtags"),
+    }})
+
+
 @app.route("/api/analytics", methods=["GET"])
 def api_analytics():
     records = _analytics().all_records()
@@ -716,6 +768,15 @@ _disc_lock = threading.Lock()
 def _run_discovery(run_id: str):
     """Background: find fresh source videos for the user's niches."""
     cfg = cfg_mod.load_config()
+    with _disc_lock:
+        override = _disc_runs[run_id].get("niches")
+        custom_override = _disc_runs[run_id].get("custom_niche")
+    if override is not None:
+        cfg = dict(cfg)
+        cfg["niches"] = override
+    if custom_override is not None:
+        cfg = dict(cfg)
+        cfg["custom_niche"] = custom_override
     try:
         grouped = discover_for_autopilot(cfg, per_niche=3)
         with _disc_lock:
@@ -731,13 +792,27 @@ def _run_discovery(run_id: str):
 @app.route("/api/discover", methods=["POST"])
 def api_discover_start():
     cfg = cfg_mod.load_config()
-    if not cfg.get("niches"):
+    body = request.get_json(silent=True) or {}
+    # Optional niche focus: restrict this run to the given niche ids.
+    niches = body.get("niches")
+    custom_niche = body.get("custom_niche")
+    if niches is not None:
+        known = {n["id"] for n in niches_mod.list_niches()} | {"custom"}
+        if (not isinstance(niches, list) or not niches
+                or any(n not in known for n in niches)):
+            return jsonify({"ok": False, "error": "Unknown niche id."}), 400
+        if "custom" in niches and not (custom_niche or cfg.get("custom_niche")):
+            return jsonify({"ok": False,
+                            "error": "Type your custom niche name first."}), 400
+    elif not cfg.get("niches"):
         return jsonify({"ok": False,
                         "error": "Pick at least one niche in Settings below."}), 400
     run_id = uuid.uuid4().hex[:12]
     with _disc_lock:
         _disc_runs[run_id] = {"status": "running", "candidates": {},
-                              "started": time.time()}
+                              "started": time.time(),
+                              "niches": niches,
+                              "custom_niche": custom_niche}
     t = threading.Thread(target=_run_discovery, args=(run_id,), daemon=True)
     t.start()
     return jsonify({"ok": True, "run_id": run_id})

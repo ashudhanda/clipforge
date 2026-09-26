@@ -203,14 +203,26 @@ def get_provider(prefer: str | None = None) -> LLMProvider:
         prefer = stored["provider"]
     gemini_key = os.environ.get("GEMINI_API_KEY", "") or stored["gemini_key"]
     openai_key = os.environ.get("OPENAI_API_KEY", "") or stored["openai_key"]
+    # Dashboard model pick: the chosen model goes first, provider defaults
+    # stay as fallbacks. Explicit CF_*_MODEL env pins still win inside the
+    # provider constructors.
+    pin = (stored.get("model") or "").strip() or None
+
+    def _with_pin(defaults: list[str]) -> list[str]:
+        if pin and pin in defaults:
+            return [pin] + [m for m in defaults if m != pin]
+        return list(defaults)
+
     if prefer == "openai":
-        return OpenAIProvider(openai_key or None)
+        return OpenAIProvider(openai_key or None,
+                              models=_with_pin(DEFAULT_OPENAI_MODELS))
     if prefer == "gemini":
-        return GeminiProvider(gemini_key or None)
+        return GeminiProvider(gemini_key or None,
+                              models=_with_pin(DEFAULT_GEMINI_MODELS))
     if gemini_key:
-        return GeminiProvider(gemini_key)
+        return GeminiProvider(gemini_key, models=_with_pin(DEFAULT_GEMINI_MODELS))
     if openai_key:
-        return OpenAIProvider(openai_key)
+        return OpenAIProvider(openai_key, models=_with_pin(DEFAULT_OPENAI_MODELS))
     raise LLMError(
         "No LLM API key found. Paste a Gemini key (free) in the dashboard's "
         "AI-brain card, or set GEMINI_API_KEY / OPENAI_API_KEY, "

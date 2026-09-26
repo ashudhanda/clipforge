@@ -26,8 +26,12 @@ def keys_path() -> Path:
 
 
 def load_keys() -> dict:
-    """Return ``{"gemini_key","openai_key","provider"}``; missing file -> blanks."""
-    out = {"gemini_key": "", "openai_key": "", "provider": "auto"}
+    """Return ``{"gemini_key","openai_key","provider","model"}``; missing -> blanks.
+
+    ``model`` is the dashboard-picked model id ("" = provider default).
+    Validation against the known model lists happens at the API layer.
+    """
+    out = {"gemini_key": "", "openai_key": "", "provider": "auto", "model": ""}
     try:
         raw = keys_path().read_text(encoding="utf-8")
     except (FileNotFoundError, OSError):
@@ -37,7 +41,7 @@ def load_keys() -> dict:
     except (json.JSONDecodeError, ValueError):
         return out
     if isinstance(data, dict):
-        for k in ("gemini_key", "openai_key"):
+        for k in ("gemini_key", "openai_key", "model"):
             v = data.get(k)
             if isinstance(v, str):
                 out[k] = v.strip()
@@ -50,12 +54,14 @@ def save_keys(
     gemini_key: str = "",
     openai_key: str = "",
     provider: str = "auto",
+    model: str = "",
 ) -> Path:
     """Write keys with owner-only (0o600) permissions.
 
     Writes exactly what it is given (use ``forget_key`` to clear one key).
     The dashboard API (``POST /api/llm``) treats blank fields as "keep the
     stored key", so blanks never reach this function as clears.
+    ``model`` is a dashboard-picked model id ("" = provider default).
     """
     if provider not in VALID_PROVIDERS:
         raise ValueError(f"provider must be one of {VALID_PROVIDERS}")
@@ -66,6 +72,7 @@ def save_keys(
             "gemini_key": (gemini_key or "").strip(),
             "openai_key": (openai_key or "").strip(),
             "provider": provider,
+            "model": (model or "").strip(),
         }
     )
     # os.open with 0o600 from the start: no window where the file is wider.
@@ -105,4 +112,5 @@ def forget_key(which: str) -> None:
         gemini_key=stored["gemini_key"],
         openai_key=stored["openai_key"],
         provider=stored["provider"],
+        model=stored["model"],
     )

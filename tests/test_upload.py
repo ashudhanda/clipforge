@@ -353,3 +353,12 @@ def test_upload_clip_api_success(tmp_video, monkeypatch):
 def test_upload_clip_unknown_mode():
     with pytest.raises(UploadError, match="unknown upload mode"):
         upload_clip({}, mode="carrier-pigeon")
+
+
+def test_quota_status_reports_units(quota):
+    s = quota.status()
+    assert s["units_limit"] == 10000
+    assert s["units_per_upload"] == 1600
+    assert s["units_used"] == s["used"] * 1600
+    # existing keys preserved
+    assert s["limit"] == 100 and "remaining" in s and "resets" in s
