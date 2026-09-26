@@ -124,32 +124,40 @@ def client(cfg_home):
     return app_mod.app.test_client()
 
 
-def test_index_shows_setup_before_config(client):
-    r = client.get("/")
-    assert r.status_code == 200
-    assert b"Welcome to ClipForge" in r.data
-
-
-def test_setup_flow_then_dashboard(client):
-    r = client.post("/api/setup", json=valid_payload())
-    assert r.status_code == 200
-    assert r.get_json()["ok"] is True
-
+def test_index_first_run_goes_straight_to_dashboard(client):
+    # No forced wizard: first visit writes defaults and shows the dashboard.
     r = client.get("/")
     assert r.status_code == 200
     assert b"Make clips from a video" in r.data
+    cfg = cfg_mod.load_config()
+    assert cfg["setup_done"] is True
+    assert len(cfg["niches"]) == 40  # every niche pre-selected, custom excluded
 
 
-def test_setup_rejects_bad_style(client):
-    payload = valid_payload(); payload["caption_style"] = "comic-sans"
-    r = client.post("/api/setup", json=payload)
+def test_settings_change_anything_anytime(client):
+    r = client.get("/")  # first run writes defaults
+    assert r.status_code == 200
+    # partial update: only caption_style
+    r = client.post("/api/settings", json={"caption_style": "hormozi"})
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    cfg = cfg_mod.load_config()
+    assert cfg["caption_style"] == "hormozi"
+    assert len(cfg["niches"]) == 40  # untouched fields preserved
+    # niche list can be trimmed anytime
+    r = client.post("/api/settings", json={"niches": ["ai-news"]})
+    assert r.status_code == 200
+    assert cfg_mod.load_config()["niches"] == ["ai-news"]
+
+
+def test_settings_rejects_bad_style(client):
+    r = client.post("/api/settings", json={"caption_style": "comic-sans"})
     assert r.status_code == 400
     assert r.get_json()["ok"] is False
 
 
-def test_setup_rejects_invalid_payload(client):
-    payload = valid_payload(); payload["niches"] = []
-    r = client.post("/api/setup", json=payload)
+def test_settings_rejects_invalid_payload(client):
+    r = client.post("/api/settings", json={"niches": []})
     assert r.status_code == 400
 
 
@@ -215,10 +223,8 @@ def test_save_config_accepts_gate_preset_string(cfg_home):
     assert cfg_mod.load_config()["quality_gate"] == 70
 
 
-def test_setup_api_accepts_gate_preset_string(client):
-    payload = valid_payload()
-    payload["quality_gate"] = "low"
-    r = client.post("/api/setup", json=payload)
+def test_settings_api_accepts_gate_preset_string(client):
+    r = client.post("/api/settings", json={"quality_gate": "low"})
     assert r.status_code == 200
     assert r.get_json()["ok"] is True
     assert cfg_mod.load_config()["quality_gate"] == 30

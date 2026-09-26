@@ -189,10 +189,20 @@ def _parse_json_strict(text: str) -> object:
 
 
 def get_provider(prefer: str | None = None) -> LLMProvider:
-    """Pick a provider from available API keys. Raise LLMError if none."""
+    """Pick a provider from available API keys. Raise LLMError if none.
+
+    Key lookup order: environment variables first (``GEMINI_API_KEY`` /
+    ``OPENAI_API_KEY`` / ``CF_LLM_PROVIDER``), then the dashboard-saved keys
+    in ``~/.clipforge/llm_keys.json``. Explicit env always wins.
+    """
+    from . import llm_keys
+
+    stored = llm_keys.load_keys()
     prefer = (prefer or os.environ.get("CF_LLM_PROVIDER", "")).lower()
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    if not prefer and stored["provider"] != "auto":
+        prefer = stored["provider"]
+    gemini_key = os.environ.get("GEMINI_API_KEY", "") or stored["gemini_key"]
+    openai_key = os.environ.get("OPENAI_API_KEY", "") or stored["openai_key"]
     if prefer == "openai":
         return OpenAIProvider(openai_key or None)
     if prefer == "gemini":
@@ -202,8 +212,9 @@ def get_provider(prefer: str | None = None) -> LLMProvider:
     if openai_key:
         return OpenAIProvider(openai_key)
     raise LLMError(
-        "No LLM API key found. Set GEMINI_API_KEY (preferred, free tier) or "
-        "OPENAI_API_KEY, or use mode='offline' for zero-cost detection."
+        "No LLM API key found. Paste a Gemini key (free) in the dashboard's "
+        "AI-brain card, or set GEMINI_API_KEY / OPENAI_API_KEY, "
+        "or use mode='offline' for zero-cost detection."
     )
 
 

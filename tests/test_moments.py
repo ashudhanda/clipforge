@@ -105,7 +105,8 @@ def _two_topic_transcript(n_each: int = 12) -> list[dict]:
 # ------------------------------------------------------------------ llm.py
 
 
-def test_get_provider_no_keys_raises(monkeypatch):
+def test_get_provider_no_keys_raises(monkeypatch, tmp_path):
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("CF_LLM_PROVIDER", raising=False)
@@ -113,14 +114,16 @@ def test_get_provider_no_keys_raises(monkeypatch):
         get_provider()
 
 
-def test_get_provider_prefers_gemini(monkeypatch):
+def test_get_provider_prefers_gemini(monkeypatch, tmp_path):
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
     monkeypatch.setenv("GEMINI_API_KEY", "k1")
     monkeypatch.setenv("OPENAI_API_KEY", "k2")
     monkeypatch.delenv("CF_LLM_PROVIDER", raising=False)
     assert isinstance(get_provider(), GeminiProvider)
 
 
-def test_get_provider_openai_only(monkeypatch):
+def test_get_provider_openai_only(monkeypatch, tmp_path):
+    monkeypatch.setenv("CF_CONFIG_DIR", str(tmp_path / ".clipforge"))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "k2")
     assert isinstance(get_provider(), OpenAIProvider)
@@ -330,11 +333,21 @@ def test_segment_offline_too_short():
     assert segment_offline(tr) == []
 
 
-def test_segment_offline_no_sklearn(monkeypatch):
+def test_segment_offline_needs_no_sklearn():
+    """Frozen-app regression test: offline mode must work with sklearn
+    completely absent (the v0.1.2 Windows build failed its sklearn import
+    even though pip had it — the frozen app bundles its own env)."""
+    import sys
+    from pathlib import Path
+
     import core.moments.segmenter as seg
-    monkeypatch.setattr(seg, "_SKLEARN_OK", False)
-    with pytest.raises(RuntimeError):
-        seg.segment_offline(_two_topic_transcript())
+    src = Path(seg.__file__).read_text(encoding="utf-8")
+    assert "import sklearn" not in src and "from sklearn" not in src
+    assert not any(m == "sklearn" or m.startswith("sklearn.")
+                   for m in sys.modules)
+    clips = seg.segment_offline(_two_topic_transcript(), min_clip_sec=10.0)
+    assert len(clips) >= 2
+    assert all(c.source == "offline" for c in clips)
 
 
 # ------------------------------------------------------------------ __init__

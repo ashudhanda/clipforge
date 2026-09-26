@@ -58,8 +58,6 @@ a = Analysis(
         "engineio.async_drivers.threading",
         # heavy optional deps with dynamic imports
         "faster_whisper",
-        "sklearn",
-        "sklearn.ensemble",
         "cv2",
         "yt_dlp",
         "googleapiclient",

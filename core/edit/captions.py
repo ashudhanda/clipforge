@@ -24,8 +24,8 @@ CAPTION_STYLES = (
     "hormozi", "beast", "neon", "wordbox", "stroke", "typewriter",
 )
 
-# Ashu-locked user-facing styles (2026-09-25): all 9 — the setup wizard and
-# dashboard offer these; "random" picks one per clip.
+# Ashu-locked user-facing styles (2026-09-25): all 9 — the dashboard offers
+# these; "random" picks one per clip.
 AVAILABLE_STYLES = CAPTION_STYLES
 
 

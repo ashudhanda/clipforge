@@ -5,6 +5,12 @@ TextTiling-lite, adapted from the Phase 0 audit of clipsai's TextTiler
 with a lightweight TF-IDF + numpy stack instead of sentence-transformers +
 torch, so offline mode installs in seconds and costs nothing.
 
+The TF-IDF here is vendored in pure numpy (no scikit-learn dependency):
+same token pattern, same english stop words, same smoothed IDF and L2
+row normalisation as sklearn's TfidfVectorizer defaults. This keeps the
+frozen one-click installer small and guarantees offline mode works with
+zero heavy dependencies.
+
 Honesty contract: offline scores measure TOPIC-SHIFT STRENGTH (how strongly a
 boundary separates two topics), not virality. They are real computed values,
 documented as such — never presented as engagement predictions.
@@ -14,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 
 import numpy as np
 
@@ -21,14 +28,83 @@ from .scorer import Clip, group_sentences
 
 log = logging.getLogger("clipforge.moments.segmenter")
 
-try:
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
+# --- vendored TF-IDF (sklearn-compatible defaults, pure numpy) ---------------
+# Token pattern (?u)\\b\\w\\w+\\b  == sklearn's default: 2+ word chars.
+_TOKEN_RE = re.compile(r"(?u)\b\w\w+\b")
 
-    _SKLEARN_OK = True
-except ImportError:  # pragma: no cover - handled at call time
-    _SKLEARN_OK = False
+# sklearn's ENGLISH_STOP_WORDS (318 words), vendored so the
+# frozen app needs no scikit-learn at all.
+_ENGLISH_STOP_WORDS = frozenset({
+    'a', 'about', 'above', 'across', 'after', 'afterwards', 'again', 'against',
+    'all', 'almost', 'alone', 'along', 'already', 'also', 'although', 'always',
+    'am', 'among', 'amongst', 'amoungst', 'amount', 'an', 'and', 'another',
+    'any', 'anyhow', 'anyone', 'anything', 'anyway', 'anywhere', 'are', 'around',
+    'as', 'at', 'back', 'be', 'became', 'because', 'become', 'becomes',
+    'becoming', 'been', 'before', 'beforehand', 'behind', 'being', 'below', 'beside',
+    'besides', 'between', 'beyond', 'bill', 'both', 'bottom', 'but', 'by',
+    'call', 'can', 'cannot', 'cant', 'co', 'con', 'could', 'couldnt',
+    'cry', 'de', 'describe', 'detail', 'do', 'done', 'down', 'due',
+    'during', 'each', 'eg', 'eight', 'either', 'eleven', 'else', 'elsewhere',
+    'empty', 'enough', 'etc', 'even', 'ever', 'every', 'everyone', 'everything',
+    'everywhere', 'except', 'few', 'fifteen', 'fifty', 'fill', 'find', 'fire',
+    'first', 'five', 'for', 'former', 'formerly', 'forty', 'found', 'four',
+    'from', 'front', 'full', 'further', 'get', 'give', 'go', 'had',
+    'has', 'hasnt', 'have', 'he', 'hence', 'her', 'here', 'hereafter',
+    'hereby', 'herein', 'hereupon', 'hers', 'herself', 'him', 'himself', 'his',
+    'how', 'however', 'hundred', 'i', 'ie', 'if', 'in', 'inc',
+    'indeed', 'interest', 'into', 'is', 'it', 'its', 'itself', 'keep',
+    'last', 'latter', 'latterly', 'least', 'less', 'ltd', 'made', 'many',
+    'may', 'me', 'meanwhile', 'might', 'mill', 'mine', 'more', 'moreover',
+    'most', 'mostly', 'move', 'much', 'must', 'my', 'myself', 'name',
+    'namely', 'neither', 'never', 'nevertheless', 'next', 'nine', 'no', 'nobody',
+    'none', 'noone', 'nor', 'not', 'nothing', 'now', 'nowhere', 'of',
+    'off', 'often', 'on', 'once', 'one', 'only', 'onto', 'or',
+    'other', 'others', 'otherwise', 'our', 'ours', 'ourselves', 'out', 'over',
+    'own', 'part', 'per', 'perhaps', 'please', 'put', 'rather', 're',
+    'same', 'see', 'seem', 'seemed', 'seeming', 'seems', 'serious', 'several',
+    'she', 'should', 'show', 'side', 'since', 'sincere', 'six', 'sixty',
+    'so', 'some', 'somehow', 'someone', 'something', 'sometime', 'sometimes', 'somewhere',
+    'still', 'such', 'system', 'take', 'ten', 'than', 'that', 'the',
+    'their', 'them', 'themselves', 'then', 'thence', 'there', 'thereafter', 'thereby',
+    'therefore', 'therein', 'thereupon', 'these', 'they', 'thick', 'thin', 'third',
+    'this', 'those', 'though', 'three', 'through', 'throughout', 'thru', 'thus',
+    'to', 'together', 'too', 'top', 'toward', 'towards', 'twelve', 'twenty',
+    'two', 'un', 'under', 'until', 'up', 'upon', 'us', 'very',
+    'via', 'was', 'we', 'well', 'were', 'what', 'whatever', 'when',
+    'whence', 'whenever', 'where', 'whereafter', 'whereas', 'whereby', 'wherein', 'whereupon',
+    'wherever', 'whether', 'which', 'while', 'whither', 'who', 'whoever', 'whole',
+    'whom', 'whose', 'why', 'will', 'with', 'within', 'without', 'would',
+    'yet', 'you', 'your', 'yours', 'yourself', 'yourselves',
+})
 
+def _tfidf_matrix(texts: list[str]) -> np.ndarray:
+    """TF-IDF matrix, rows L2-normalised.
+
+    Matches sklearn TfidfVectorizer(stop_words="english", lowercase=True)
+    defaults: raw term counts, smooth IDF ``ln((1+n)/(1+df)) + 1``,
+    L2 row normalisation.
+    """
+    docs: list[list[str]] = []
+    doc_freq: dict[str, int] = {}
+    for text in texts:
+        toks = [w for w in _TOKEN_RE.findall(text.lower())
+                if w not in _ENGLISH_STOP_WORDS]
+        docs.append(toks)
+        for w in set(toks):
+            doc_freq[w] = doc_freq.get(w, 0) + 1
+    vocab = {w: i for i, w in enumerate(doc_freq)}
+    n = len(texts)
+    mat = np.zeros((n, len(vocab)), dtype=float)
+    for i, toks in enumerate(docs):
+        for w in toks:
+            mat[i, vocab[w]] += 1.0
+    if vocab:
+        df = np.array([doc_freq[w] for w in vocab], dtype=float)
+        idf = np.log((1.0 + n) / (1.0 + df)) + 1.0
+        mat *= idf
+    norms = np.linalg.norm(mat, axis=1, keepdims=True)
+    norms[norms == 0.0] = 1.0
+    return mat / norms
 
 def _window_mean(vecs: np.ndarray, lo: int, hi: int) -> np.ndarray:
     seg = vecs[lo:hi]
@@ -48,11 +124,10 @@ def segment_offline(
 
     Returns Clips sorted by boundary-strength score desc. Score semantics:
     topic-shift strength 0-100, NOT virality — see module docstring.
+
+    Needs nothing but numpy — the TF-IDF is vendored above, so this works
+    in the frozen app with zero heavy dependencies.
     """
-    if not _SKLEARN_OK:
-        raise RuntimeError(
-            "scikit-learn is required for offline mode (pip install scikit-learn)"
-        )
     sentences = group_sentences(transcript)
     if len(sentences) < 6:
         log.warning("segment_offline: only %d sentences -> no segments", len(sentences))
@@ -61,8 +136,7 @@ def segment_offline(
     target = max(1, min(40, round(duration / 60 * clips_per_minute)))
 
     texts = [s.text for s in sentences]
-    tfidf = TfidfVectorizer(stop_words="english", lowercase=True).fit_transform(texts)
-    vecs = tfidf.toarray().astype(float)
+    vecs = _tfidf_matrix(texts)
     n = len(sentences)
 
     # Gap score at each inter-sentence boundary: cosine similarity of the

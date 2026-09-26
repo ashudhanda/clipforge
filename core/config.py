@@ -25,7 +25,9 @@ MODE_LABELS = {
 
 DEFAULTS = {
     "setup_done": False,
-    "niches": [],            # list of niche ids
+    # No forced wizard anymore: first run auto-selects every niche so the
+    # user can start instantly and trim the list anytime from Settings.
+    "niches": [n for n in niche_ids() if n != "custom"],
     "custom_niche": "",      # free text when "custom" is selected
     "caption_style": "karaoke",  # one of AVAILABLE_STYLES or "random"
     "mode": "manual",        # manual | semi-auto | autopilot

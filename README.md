@@ -76,14 +76,15 @@ The dashboard opens by itself at **http://127.0.0.1:5057** 🎉
 > on macOS right-click → *Open* on first launch. FFmpeg is bundled, so no
 > terminal and no Python needed. (To build locally, see `packaging/`.)
 
-## 🧭 First run — the 1-minute setup wizard
+## 🧭 First run — no forms, just a 30-second tour
 
-1. **Pick niches** — choose from 40+ (gaming, finance, fitness, …) or add your own.
-2. **Pick a caption style** — watch the animated previews, tap your favourite.
-3. **Pick a mode** — Manual / Semi-auto / Full autopilot.
-4. **Set your schedule** — how many clips per day, and at what times.
-5. **Quality gate** — 🟢 Low / 🟡 Medium / 🔴 High: in autopilot, clips scoring
-   below your bar are skipped automatically.
+Open the app and you're straight in — no setup questions. Sensible defaults
+are pre-filled (every niche selected, karaoke captions, manual mode) and a
+quick tour shows what happens where ("yaha se ye hoga").
+
+Everything stays changeable forever in the **⚙️ Settings** card on the same
+page: niches, caption style, upload mode, daily schedule, quality gate —
+change anything, anytime. Nothing is locked after day one.
 
 ## 📤 Connect YouTube (one time, ~5 min)
 
@@ -109,7 +110,7 @@ ClipForge dashboard → click **🔗 Connect YouTube** → approve in your brows
 
 ```
 clipforge/
-├── app.py              # dashboard + setup wizard (Flask)
+├── app.py              # dashboard: zero forced setup, everything on one page (Flask)
 ├── core/
 │   ├── discovery/      # niche video discovery (yt-dlp search)
 │   ├── ingest/         # downloads

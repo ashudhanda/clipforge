@@ -1,6 +1,7 @@
 """ClipForge — beginner-friendly local web app.
 
-Dashboard + one-time setup wizard. One launch command, everything else is
+Dashboard with zero forced setup — first run writes sensible defaults and
+goes straight in. One launch command, everything else is
 buttons — no terminal needed for the user.
 
     python app.py
@@ -34,6 +35,8 @@ from core.ingest import download_ranges, ingest
 from core.ingest.ytdlp_helper import extract_video_id
 from core.metadata import generate_for_clips
 from core.moments import detect_moments_with_usage
+from core.moments import llm as llm_mod
+from core.moments import llm_keys as llm_keys_mod
 from core.moments.llm import LLMError
 from core.upload import oauth as yt_oauth
 from core.upload import quota_status as yt_quota_status
@@ -357,15 +360,13 @@ from flask import render_template  # noqa: E402  (kept with other flask imports)
 
 @app.route("/")
 def index():
+    # No forced setup wizard: on the very first run we write sensible
+    # defaults (every niche selected, karaoke captions, manual mode) and
+    # go straight to the dashboard. Everything stays editable in Settings.
+    if not cfg_mod.config_path().exists():
+        cfg_mod.save_config(cfg_mod.default_config())
     cfg = cfg_mod.load_config()
-    if not cfg.get("setup_done"):
-        return render_template("setup.html")
     return render_template("dashboard.html", cfg=cfg)
-
-
-@app.route("/setup")
-def setup_page():
-    return render_template("setup.html")
 
 
 # ---------------------------------------------------------------------------
@@ -377,15 +378,59 @@ def api_get_config():
     return jsonify(cfg_mod.load_config())
 
 
-@app.route("/api/setup", methods=["POST"])
-def api_setup():
+@app.route("/api/llm", methods=["GET"])
+def api_llm_status():
+    """Dashboard "AI brain" status — never returns key values, only set-flags."""
+    stored = llm_keys_mod.load_keys()
+    active = {"provider": None, "model": None}
+    try:
+        p = llm_mod.get_provider()
+        active = {"provider": p.name, "model": (p.models or [None])[0]}
+    except llm_mod.LLMError:
+        pass
+    return jsonify({
+        "ok": True,
+        "gemini_set": bool(os.environ.get("GEMINI_API_KEY") or stored["gemini_key"]),
+        "openai_set": bool(os.environ.get("OPENAI_API_KEY") or stored["openai_key"]),
+        "provider": stored["provider"],
+        "models": {
+            "gemini": list(llm_mod.DEFAULT_GEMINI_MODELS),
+            "openai": list(llm_mod.DEFAULT_OPENAI_MODELS),
+        },
+        "active": active,
+    })
+
+
+@app.route("/api/llm", methods=["POST"])
+def api_llm_save():
+    """Save LLM keys from the dashboard (stored 0o600 in ~/.clipforge)."""
     data = request.get_json(force=True) or {}
-    style = str(data.get("caption_style", ""))
-    if style != "random" and style not in AVAILABLE_STYLES:
+    try:
+        llm_keys_mod.save_keys(
+            gemini_key=str(data.get("gemini_key", "")),
+            openai_key=str(data.get("openai_key", "")),
+            provider=str(data.get("provider", "auto") or "auto"),
+        )
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    return jsonify({"ok": True})
+
+
+@app.route("/api/settings", methods=["POST"])
+def api_settings():
+    """Change anything, anytime: merges the posted fields over the current
+    config and re-validates. (Replaces the old one-time /api/setup.)"""
+    data = request.get_json(force=True) or {}
+    style = data.get("caption_style")
+    if style is not None and style != "random" and style not in AVAILABLE_STYLES:
         return jsonify({"ok": False,
                         "error": f"Unknown caption style {style!r}."}), 400
+    merged = cfg_mod.load_config()
+    for k in cfg_mod.DEFAULTS:
+        if k in data:
+            merged[k] = data[k]
     try:
-        path = cfg_mod.save_config(data)
+        path = cfg_mod.save_config(merged)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     return jsonify({"ok": True, "path": str(path)})
@@ -615,7 +660,7 @@ def api_discover_start():
     cfg = cfg_mod.load_config()
     if not cfg.get("niches"):
         return jsonify({"ok": False,
-                        "error": "Pick at least one niche in setup first."}), 400
+                        "error": "Pick at least one niche in Settings below."}), 400
     run_id = uuid.uuid4().hex[:12]
     with _disc_lock:
         _disc_runs[run_id] = {"status": "running", "candidates": {},

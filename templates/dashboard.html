@@ -4,40 +4,70 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClipForge — Dashboard</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("cf-theme")||"dark"}catch(e){document.documentElement.dataset.theme="dark"}</script>
 <style>
-  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2e38; --txt:#eef1f6; --dim:#9aa3b2;
-          --acc:#ffb020; --acc2:#4da3ff; --ok:#37d67a; --bad:#ff5d5d; }
+  :root { --bg:#0c0916; --card:#151022; --line:#2c2347; --txt:#f4efff; --dim:#a89ccb;
+          --acc:#d7fb43; --acc2:#a678ff; --ok:#3ddc84; --bad:#ff6b7a; color-scheme:dark; }
+  /* Light mode — same identity, daylight version */
+  [data-theme="light"] { --bg:#f5f2ff; --card:#ffffff; --line:#e0d4f6; --txt:#1d1533; --dim:#6f6390;
+          --acc:#9ed60e; --acc2:#7c3aed; --ok:#0d9d5d; --bad:#e0445e; color-scheme:light; }
+  [data-theme="light"] body { background:
+           radial-gradient(900px 420px at 12% -4%, rgba(124,58,237,.10), transparent 60%),
+           radial-gradient(820px 380px at 88% -6%, rgba(158,214,14,.14), transparent 60%),
+           var(--bg); }
+  [data-theme="light"] .topbar { background:rgba(245,242,255,.82); }
+  [data-theme="light"] input[type=text], [data-theme="light"] input[type=password],
+  [data-theme="light"] select { background:#f8f5ff; }
+  [data-theme="light"] .clip, [data-theme="light"] .src, [data-theme="light"] .sugg { background:#f8f5ff; }
+  [data-theme="light"] .upload-note { color:#42580a; }
+  [data-theme="light"] .bigbtn { box-shadow:0 6px 20px rgba(158,214,14,.35); }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--txt);
-         font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  body { margin:0; color:var(--txt);
+         font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         background:
+           radial-gradient(900px 420px at 12% -4%, rgba(166,120,255,.14), transparent 60%),
+           radial-gradient(820px 380px at 88% -6%, rgba(215,251,67,.07), transparent 60%),
+           var(--bg); }
+  .topbar { position:sticky; top:0; z-index:50; backdrop-filter:blur(14px);
+            background:rgba(12,9,22,.8); border-bottom:1px solid var(--line); }
+  .topbar .inner { max-width:1080px; margin:0 auto; padding:12px 20px;
+            display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .logo { font-size:22px; font-weight:800; letter-spacing:.01em; }
+  .logo .logotxt { background:linear-gradient(100deg,var(--acc),var(--acc2));
+            -webkit-background-clip:text; background-clip:text; color:transparent; }
   .wrap { max-width:1080px; margin:0 auto; padding:24px 20px 80px; }
-  header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
-  header h1 { margin:0; font-size:24px; }
-  .badge { background:var(--line); border-radius:999px; padding:5px 14px; font-size:13px; }
-  .badge.auto { background:#12351f; color:var(--ok); }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+  .badge { background:rgba(166,120,255,.12); border:1px solid var(--line);
+           border-radius:999px; padding:5px 14px; font-size:13px; }
+  .badge.auto { background:rgba(61,220,132,.12); border-color:rgba(61,220,132,.4); color:var(--ok); }
+  .card { background:linear-gradient(180deg,rgba(166,120,255,.06),transparent 34%), var(--card);
+          border:1px solid var(--line); border-radius:16px;
           padding:20px; margin-bottom:16px; }
   .card h2 { margin:0 0 12px; font-size:18px; }
   .hint { color:var(--dim); font-size:14px; margin:0 0 12px; }
-  input[type=text], select { background:#12151b; border:1px solid var(--line);
+  input[type=text], input[type=password], select { background:#0f0b1c; border:1px solid var(--line);
     color:var(--txt); border-radius:10px; padding:11px 12px; font-size:15px; width:100%; }
+  input[type=text]:focus, input[type=password]:focus, select:focus { outline:none;
+    border-color:var(--acc2); box-shadow:0 0 0 3px rgba(166,120,255,.25); }
+  .lbl { font-size:13px; color:var(--dim); display:block; margin-bottom:6px; }
   .frow { display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:12px; }
   @media(min-width:700px){ .frow.two{grid-template-columns:1fr 1fr;} .frow.three{grid-template-columns:2fr 1fr 1fr;} }
-  .bigbtn { background:var(--acc); color:#111; border:0; border-radius:12px;
-            padding:14px 28px; font-size:17px; font-weight:700; cursor:pointer; width:100%; }
+  .bigbtn { background:linear-gradient(135deg,var(--acc),#b9ec2e); color:#141a05; border:0; border-radius:12px;
+            padding:14px 28px; font-size:17px; font-weight:800; cursor:pointer; width:100%;
+            box-shadow:0 6px 24px rgba(215,251,67,.22); transition:transform .12s, box-shadow .12s; }
+  .bigbtn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 10px 30px rgba(215,251,67,.35); }
   .bigbtn:disabled { opacity:.5; }
   .job { border-left:4px solid var(--acc2); }
   .job.done { border-left-color:var(--ok); }
   .job.failed { border-left-color:var(--bad); }
   .pbar { height:10px; background:#0c0e12; border-radius:5px; overflow:hidden; margin:8px 0; }
-  .pbar > div { height:100%; background:var(--acc2); width:0%; transition:width .5s; }
+  .pbar > div { height:100%; background:linear-gradient(90deg,var(--acc2),var(--acc)); width:0%; transition:width .5s; }
   .job.done .pbar > div { background:var(--ok); }
   .step { font-size:14px; color:var(--dim); }
   .note { font-size:13px; color:var(--acc2); margin:4px 0; }
   .err { color:var(--bad); font-size:14px; }
   .clips { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
            gap:14px; margin-top:14px; }
-  .clip { background:#12151b; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .clip { background:#100c1e; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .clip video { width:100%; aspect-ratio:9/16; object-fit:cover; display:block; background:#000; }
   .clip .body { padding:12px; }
   .clip .title { font-weight:600; font-size:14px; margin-bottom:6px; }
@@ -46,22 +76,22 @@
   .tags { font-size:12px; color:var(--acc2); margin-bottom:8px; word-break:break-word; }
   .meta { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
   .score { font-size:12px; border-radius:999px; padding:3px 10px; background:var(--line); }
-  .score.hi { background:#12351f; color:var(--ok); }
-  .score.lo { background:#3a1414; color:var(--bad); }
+  .score.hi { background:rgba(61,220,132,.14); color:var(--ok); }
+  .score.lo { background:rgba(255,107,122,.14); color:var(--bad); }
   .skip { font-size:12px; color:var(--bad); }
   .cbtns { display:flex; gap:6px; }
   .cbtns button, .cbtns a { flex:1; text-align:center; border-radius:8px; padding:8px 4px;
     font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; }
   .approve { background:var(--ok); color:#06130c; border:0; }
   .approve.on { background:var(--line); color:var(--dim); }
-  .dl { background:var(--acc2); color:#06121f; }
+  .dl { background:var(--acc2); color:#1a1030; }
   .restyle { width:100%; margin-top:8px; font-size:13px; padding:7px; }
-  .upload-note { background:#1c1607; border:1px solid #5a4510; border-radius:10px;
-                 padding:12px; font-size:14px; color:#ffd98a; margin-bottom:16px; }
+  .upload-note { background:rgba(215,251,67,.07); border:1px solid rgba(215,251,67,.32); border-radius:10px;
+                 padding:12px; font-size:14px; color:#ecffa8; margin-bottom:16px; }
   .gate-note { font-size:13px; color:var(--dim); margin-top:8px; }
   .src { display:flex; gap:10px; align-items:flex-start; padding:10px 12px;
          border:1px solid var(--line); border-radius:10px; margin-bottom:8px;
-         background:#12151b; cursor:pointer; }
+         background:#100c1e; cursor:pointer; }
   .src input { margin-top:4px; width:18px; height:18px; accent-color:var(--acc); flex-shrink:0; }
   .src .stitle { font-size:14px; font-weight:600; display:block; margin-bottom:4px; }
   .src .stitle a { color:var(--txt); text-decoration:none; }
@@ -74,23 +104,52 @@
   .arow:last-child { border-bottom:0; }
   .asub { font-size:14px; margin:14px 0 4px; color:var(--acc2); font-weight:600; }
   .sugg { border:1px solid var(--line); border-radius:10px; padding:10px 12px;
-          margin-bottom:8px; font-size:14px; background:#12151b; }
+          margin-bottom:8px; font-size:14px; background:#100c1e; }
   .sugg .why { color:var(--dim); font-size:13px; margin-top:4px; }
   .conf { font-size:11px; border-radius:999px; padding:2px 9px;
           background:var(--line); margin-left:8px; white-space:nowrap; }
+  .krow { display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:12px; }
+  @media(min-width:700px){ .krow.two{grid-template-columns:1fr 1fr;} }
+  .keystat { font-size:13px; color:var(--dim); }
+  .themebtn { background:transparent; border:1px solid var(--line); color:var(--txt);
+          border-radius:999px; width:38px; height:38px; font-size:17px; cursor:pointer; flex-shrink:0; }
+  .themebtn:hover { border-color:var(--acc2); }
+  .nichegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+          gap:4px; max-height:200px; overflow-y:auto; border:1px solid var(--line);
+          border-radius:10px; padding:10px; background:var(--bg); margin-top:6px; }
+  .nichegrid label { display:flex; gap:8px; align-items:center; font-size:13px;
+          padding:6px 8px; border-radius:8px; cursor:pointer; }
+  .nichegrid label:hover { background:rgba(166,120,255,.12); }
+  .nichegrid input[type=checkbox] { accent-color:var(--acc2); width:15px; height:15px; flex-shrink:0; }
+  .tourover { position:fixed; inset:0; background:rgba(5,3,12,.72); z-index:100;
+          display:flex; align-items:center; justify-content:center; padding:20px; }
+  .tourcard { background:var(--card); border:1px solid var(--acc2); border-radius:16px;
+          max-width:440px; width:100%; padding:26px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .tourcard h3 { margin:6px 0 10px; font-size:20px; }
+  .tourcard p { color:var(--dim); line-height:1.65; margin:0 0 20px; font-size:14.5px; }
+  .tourstep { font-size:12px; color:var(--acc2); font-weight:700; letter-spacing:1px; }
+  .tourbtns { display:flex; gap:10px; align-items:center; }
+  .ghostbtn { background:transparent; border:1px solid var(--line); color:var(--dim);
+          border-radius:10px; padding:10px 16px; cursor:pointer; font-size:14px; }
+  .ghostbtn:hover { color:var(--txt); border-color:var(--acc2); }
+  .tour-hl { outline:3px solid var(--acc) !important; outline-offset:4px;
+          border-radius:14px; position:relative; z-index:101; }
 </style>
 </head>
 <body>
+<div class="topbar"><div class="inner">
+  <span class="logo">🎬 <span class="logotxt">ClipForge</span></span>
+  <span style="flex:1"></span>
+  <button class="themebtn" id="tourBtn" title="Replay the quick tour">❓</button>
+  <button class="themebtn" id="themeBtn" title="Light / dark mode">☀️</button>
+  <span class="badge" id="modeBadge">…</span>
+  <span class="badge" id="styleBadge">…</span>
+</div></div>
 <div class="wrap">
-  <header>
-    <h1>🎬 ClipForge</h1>
-    <span class="badge" id="modeBadge">…</span>
-    <span class="badge" id="styleBadge">…</span>
-  </header>
 
   <div class="upload-note" id="uploadNote">⏳ Checking upload status…</div>
 
-  <div class="card">
+  <div class="card" id="makeCard">
     <h2>✨ Make clips from a video</h2>
     <p class="hint">Paste a YouTube link. We'll grab the transcript, find the best moments, and build vertical Shorts.</p>
     <div class="frow"><input type="text" id="url" placeholder="https://www.youtube.com/watch?v=…"></div>
@@ -106,7 +165,7 @@
     <div class="err" id="makeErr" style="display:none;margin-top:8px"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="discCard">
     <h2>🔍 Auto-discover sources</h2>
     <p class="hint">Find fresh long videos in your niches — tick the ones you want clips from. Already-used videos never show up twice.</p>
     <button class="bigbtn" id="discBtn">Find videos 🔍</button>
@@ -120,7 +179,69 @@
     <div id="analyticsBody"><div class="step">Loading…</div></div>
   </div>
 
+  <div class="card" id="llmCard">
+    <h2>🧠 AI brain</h2>
+    <p class="hint">The AI that picks your best moments and writes titles/descriptions. Paste a <b>Gemini</b> key (free tier is plenty) — no key, no problem: the tool falls back to offline mode automatically.</p>
+    <div class="krow two">
+      <div><label class="lbl">Gemini API key</label><input type="password" id="gemKey" placeholder="AIza…" autocomplete="off"></div>
+      <div><label class="lbl">OpenAI API key <span class="keystat">(optional)</span></label><input type="password" id="oaiKey" placeholder="sk-…" autocomplete="off"></div>
+    </div>
+    <div class="krow two">
+      <div><label class="lbl">Provider</label><select id="llmProv">
+        <option value="auto">Auto — Gemini first</option>
+        <option value="gemini">Gemini only</option>
+        <option value="openai">OpenAI only</option>
+      </select></div>
+      <div><label class="lbl">Active model</label><div class="keystat" id="llmActive" style="padding:11px 0">…</div></div>
+    </div>
+    <button class="bigbtn" id="llmSave">Save AI keys 💾</button>
+    <div class="keystat" id="llmMsg" style="margin-top:8px"></div>
+    <div class="keystat" style="margin-top:6px">Free Gemini key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--acc2)">aistudio.google.com/apikey</a> · Keys stay on your machine in a locked file — never in config.json, never sent anywhere except Google/OpenAI.</div>
+  </div>
+
+  <div class="card" id="settingsCard">
+    <h2>⚙️ Settings — change anything, anytime</h2>
+    <p class="hint">Your niches, caption style, upload mode, daily schedule — nothing here is locked. Change whatever you want, whenever you want.</p>
+    <label class="lbl">Your niches <span class="keystat">(tick any — used by auto-discover and the niche dropdown above)</span></label>
+    <div class="nichegrid" id="setNiches"></div>
+    <div class="frow" id="customNicheRow" style="display:none;margin-top:8px">
+      <input type="text" id="setCustomNiche" placeholder="Type your custom niche…">
+    </div>
+    <div class="krow three" style="margin-top:12px">
+      <div><label class="lbl">Caption style</label><select id="setStyle"></select></div>
+      <div><label class="lbl">Upload mode</label><select id="setMode">
+        <option value="manual">Manual — I upload myself</option>
+        <option value="semi-auto">Semi-auto — I approve, tool uploads</option>
+        <option value="autopilot">Autopilot — fully automatic</option>
+      </select></div>
+      <div><label class="lbl">Quality gate <span class="keystat">(0–100)</span></label>
+        <input type="number" id="setGate" min="0" max="100" step="1"></div>
+    </div>
+    <div class="krow two" style="margin-top:10px">
+      <div><label class="lbl">Clips per day <span class="keystat">(1–10)</span></label>
+        <input type="number" id="setCount" min="1" max="10" step="1"></div>
+      <div><label class="lbl">Build/upload times <span class="keystat">(HH:MM, comma-separated, one per clip)</span></label>
+        <input type="text" id="setTimes" placeholder="09:00, 18:00"></div>
+    </div>
+    <button class="bigbtn" id="setSave" style="margin-top:12px">Save settings 💾</button>
+    <div class="keystat" id="setMsg" style="margin-top:8px"></div>
+  </div>
+
   <div id="jobs"></div>
+</div>
+
+<div class="tourover" id="tourOver" style="display:none">
+  <div class="tourcard">
+    <div class="tourstep" id="tourStep">1 / 5</div>
+    <h3 id="tourTitle"></h3>
+    <p id="tourText"></p>
+    <div class="tourbtns">
+      <button class="ghostbtn" id="tourSkip">Skip</button>
+      <span style="flex:1"></span>
+      <button class="ghostbtn" id="tourBack">← Back</button>
+      <button class="bigbtn" id="tourNext" style="width:auto;padding:10px 22px;margin:0">Next →</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -128,6 +249,16 @@ const $ = id => document.getElementById(id);
 let CFG = null;
 let NICHE_NAMES = {};
 let UP = null;
+let STYLES = [];
+
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  try{ localStorage.setItem("cf-theme", t); }catch(e){}
+  $("themeBtn").textContent = t==="light" ? "🌙" : "☀️";
+}
+$("themeBtn").onclick = ()=> applyTheme(
+  document.documentElement.dataset.theme==="light" ? "dark" : "light");
+applyTheme(document.documentElement.dataset.theme||"dark");
 
 async function init(){
   const [cfg, styles, up] = await Promise.all([
@@ -136,6 +267,7 @@ async function init(){
     fetch("/api/upload-status").then(r=>r.json()),
   ]);
   CFG = cfg;
+  STYLES = styles;
   $("modeBadge").textContent = "Mode: " + cfg.mode;
   $("modeBadge").classList.toggle("auto", cfg.mode==="autopilot");
   $("styleBadge").textContent = "Captions: " + (cfg.caption_style==="random"?"🎲 random":cfg.caption_style);
@@ -153,9 +285,131 @@ async function init(){
 
   $("makeBtn").onclick = makeClips;
   $("discBtn").onclick = startDiscover;
+  $("llmSave").onclick = saveLLMKeys;
+  $("setSave").onclick = saveSettings;
+  $("tourBtn").onclick = startTour;
+  $("tourNext").onclick = tourNext;
+  $("tourBack").onclick = tourBack;
+  $("tourSkip").onclick = ()=>endTour(true);
+  $("setNiches").addEventListener("change", toggleCustomRow);
+  renderSettings();
+  refreshLLM();
   setInterval(refreshJobs, 3000);
   refreshJobs();
   refreshAnalytics();
+  try{ if(!localStorage.getItem("cf-tour-done")) startTour(); }catch(e){}
+}
+
+// ---- Settings: change anything, anytime ----
+function renderSettings(){
+  const picked = new Set(CFG.niches||[]);
+  $("setNiches").innerHTML = Object.entries(NICHE_NAMES).map(([id,name])=>
+    `<label><input type="checkbox" value="${id}"${picked.has(id)?" checked":""}> ${escapeHtml(name)}</label>`).join("");
+  $("setCustomNiche").value = CFG.custom_niche||"";
+  toggleCustomRow();
+  $("setStyle").innerHTML = STYLES.map(s=>
+    `<option value="${s.id}"${s.id===CFG.caption_style?" selected":""}>${s.id==="random"?"🎲 Random every clip":s.id}</option>`).join("");
+  $("setMode").value = CFG.mode||"manual";
+  $("setGate").value = CFG.quality_gate ?? 50;
+  $("setCount").value = CFG.daily_count ?? 2;
+  $("setTimes").value = (CFG.times||[]).join(", ");
+  $("setMsg").textContent = "";
+}
+function toggleCustomRow(){
+  const on = [...document.querySelectorAll("#setNiches input:checked")].some(c=>c.value==="custom");
+  $("customNicheRow").style.display = on ? "" : "none";
+}
+async function saveSettings(){
+  const msg = $("setMsg");
+  const niches = [...document.querySelectorAll("#setNiches input:checked")].map(c=>c.value);
+  const mode = $("setMode").value;
+  const payload = {
+    niches, custom_niche: $("setCustomNiche").value.trim(),
+    caption_style: $("setStyle").value, mode, autopilot: mode==="autopilot",
+    daily_count: parseInt($("setCount").value||"2",10),
+    times: $("setTimes").value.split(",").map(s=>s.trim()).filter(Boolean),
+    quality_gate: parseInt($("setGate").value||"50",10),
+  };
+  msg.textContent = "Saving…";
+  try{
+    const r = await fetch("/api/settings",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||"save failed");
+    msg.textContent = "✅ Saved — reloading…";
+    setTimeout(()=>location.reload(), 600);
+  }catch(e){ msg.textContent = "❌ " + e.message; }
+}
+
+// ---- First-run tour: "yaha se ye hoga", nothing more ----
+const TOUR = [
+  {t:"👋 Welcome to ClipForge!",
+   x:"No forms, no setup questions — you're already in. This 30-second tour shows what happens where. Replay it anytime with the ❓ button up top.",
+   sel:null},
+  {t:"✨ Make clips from a video",
+   x:"Paste any YouTube link here, pick a niche and a caption style, then hit “Make clips”. The tool grabs the transcript, finds the best moments, and builds vertical Shorts for you.",
+   sel:"#makeCard"},
+  {t:"🔍 Auto-discover sources",
+   x:"No video in mind? This finds fresh long videos inside your niches. Tick the ones you like and make clips from them — already-used videos never show up twice.",
+   sel:"#discCard"},
+  {t:"🧠 AI brain",
+   x:"Paste a free Gemini key here and the AI picks smarter moments and writes titles for you. No key? It still works in offline mode — nothing breaks.",
+   sel:"#llmCard"},
+  {t:"⚙️ Settings — everything stays changeable",
+   x:"Niches, caption style, upload mode, daily schedule — change anything here, anytime. Nothing is locked after today, ever. That's the whole tour — go make something! 🚀",
+   sel:"#settingsCard"},
+];
+let tourIdx = 0;
+function startTour(){ tourIdx = 0; renderTour(); $("tourOver").style.display = "flex"; }
+function renderTour(){
+  document.querySelectorAll(".tour-hl").forEach(e=>e.classList.remove("tour-hl"));
+  const s = TOUR[tourIdx];
+  $("tourStep").textContent = (tourIdx+1) + " / " + TOUR.length;
+  $("tourTitle").textContent = s.t;
+  $("tourText").textContent = s.x;
+  $("tourBack").style.visibility = tourIdx===0 ? "hidden" : "visible";
+  $("tourNext").textContent = tourIdx===TOUR.length-1 ? "Done 🎉" : "Next →";
+  if(s.sel){
+    const el = document.querySelector(s.sel);
+    if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.classList.add("tour-hl"); }
+  }
+}
+function tourNext(){ if(tourIdx===TOUR.length-1) endTour(true); else { tourIdx++; renderTour(); } }
+function tourBack(){ if(tourIdx>0){ tourIdx--; renderTour(); } }
+function endTour(done){
+  $("tourOver").style.display = "none";
+  document.querySelectorAll(".tour-hl").forEach(e=>e.classList.remove("tour-hl"));
+  if(done){ try{ localStorage.setItem("cf-tour-done","1"); }catch(e){} }
+}
+
+// ---- AI brain (LLM keys) ----
+async function refreshLLM(){
+  try{
+    const s = await fetch("/api/llm").then(r=>r.json());
+    $("llmProv").value = s.provider || "auto";
+    const a = s.active || {};
+    $("llmActive").innerHTML = a.model
+      ? `⚡ <b>${escapeHtml(a.model)}</b> via ${escapeHtml(a.provider)}`
+      : `🌙 No key — <b>offline mode</b> (free, basic scoring)`;
+    $("llmMsg").textContent =
+      (s.gemini_set ? "✅ Gemini key saved  " : "") +
+      (s.openai_set ? "✅ OpenAI key saved" : "");
+  }catch(e){ $("llmActive").textContent = "couldn't reach server"; }
+}
+
+async function saveLLMKeys(){
+  const msg = $("llmMsg"); msg.textContent = "Saving…";
+  try{
+    const r = await fetch("/api/llm",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ gemini_key:$("gemKey").value,
+        openai_key:$("oaiKey").value, provider:$("llmProv").value })});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||"save failed");
+    $("gemKey").value = ""; $("oaiKey").value = "";
+    msg.textContent = "Saved ✅ — new clips will use it.";
+  }catch(e){ msg.textContent = "Error: "+e.message; }
+  refreshLLM();
 }
 
 async function makeClips(){
