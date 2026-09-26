@@ -37,14 +37,20 @@ jobs:
       - name: Fetch FFmpeg (Windows)
         if: matrix.ffmpeg == 'win'
         shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./packaging/fetch-ffmpeg.ps1
 
       - name: Fetch FFmpeg (macOS)
         if: matrix.ffmpeg == 'mac'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./packaging/fetch-ffmpeg.sh macos
 
       - name: Fetch FFmpeg (Linux)
         if: matrix.ffmpeg == 'linux'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./packaging/fetch-ffmpeg.sh linux64
 
       - name: PyInstaller build
@@ -141,3 +147,4 @@ jobs:
 
             The app opens in your browser — no terminal, no Python needed.
             FFmpeg is bundled. Your YouTube keys stay on your machine.
+

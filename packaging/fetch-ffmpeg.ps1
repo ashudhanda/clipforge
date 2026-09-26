@@ -18,12 +18,33 @@ $BuildTag = $env:FFMPEG_BUILD_TAG
 if (-not $BuildTag) { $BuildTag = "autobuild-2026-09-25-15-37" }
 
 Write-Host "-> finding BtbN FFmpeg-Builds release for tag $BuildTag ..."
-$rel = Invoke-RestMethod -Headers $headers "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/$BuildTag"
+# Retry: shared CI runners hit api.github.com rate limits and transient
+# network blips. Authenticated (GITHUB_TOKEN) calls get a far higher quota;
+# retries cover the rest.
+$rel = $null
+for ($attempt = 1; $attempt -le 3 -and -not $rel; $attempt++) {
+    try {
+        $rel = Invoke-RestMethod -Headers $headers "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/$BuildTag"
+    } catch {
+        Write-Warning "release lookup attempt $attempt/3 failed: $($_.Exception.Message)"
+        if ($attempt -eq 3) { throw }
+        Start-Sleep -Seconds (10 * $attempt)
+    }
+}
 $asset = $rel.assets | Where-Object { $_.name -match "win64-lgpl\.zip$" } | Select-Object -First 1
 if (-not $asset) { throw "no matching win64-lgpl static asset found for tag $BuildTag" }
 
 Write-Host "-> downloading $($asset.name)..."
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "package.zip"
+for ($attempt = 1; ; $attempt++) {
+    try {
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "package.zip"
+        break
+    } catch {
+        Write-Warning "download attempt $attempt/3 failed: $($_.Exception.Message)"
+        if ($attempt -eq 3) { throw }
+        Start-Sleep -Seconds (15 * $attempt)
+    }
+}
 
 Write-Host "-> extracting ffmpeg.exe + ffprobe.exe..."
 $stage = Join-Path $OutDir "stage"
