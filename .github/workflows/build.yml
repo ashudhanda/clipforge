@@ -54,13 +54,21 @@ jobs:
         if: matrix.ffmpeg == 'win'
         shell: powershell
         run: |
+          $ErrorActionPreference = "Stop"
           $ff = "dist/ClipForge/_internal/ffmpeg.exe"
           $fp = "dist/ClipForge/_internal/ffprobe.exe"
-          if (-not (Test-Path $ff)) { throw "FATAL: $ff missing from bundle" }
-          if (-not (Test-Path $fp)) { throw "FATAL: $fp missing from bundle" }
-          & $ff -hide_banner -version | Select-Object -First 1
-          & $fp -hide_banner -version | Select-Object -First 1
+          foreach ($p in @($ff, $fp)) {
+            if (-not (Test-Path $p)) { throw "FATAL: $p missing from bundle" }
+            # Capture FULL output: piping to Select-Object -First 1 closes the
+            # pipe early, which kills the native exe and leaves $LASTEXITCODE=1
+            # behind on Windows PowerShell 5.1 -- failing the step after every
+            # check already passed.
+            $ver = (& $p -hide_banner -version 2>&1) -join "`n"
+            if ($LASTEXITCODE -ne 0) { throw "FATAL: $p -version exited with code $LASTEXITCODE" }
+            Write-Host "$p -> $($ver.Split("`n")[0])"
+          }
           Write-Host "OK: ffmpeg + ffprobe present and executable in bundle"
+          exit 0
 
       - name: Verify FFmpeg bundled (macOS/Linux)
         if: matrix.ffmpeg != 'win'
