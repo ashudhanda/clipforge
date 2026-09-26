@@ -61,6 +61,19 @@ def download_audio(video_url: str, cache_dir: Optional[str] = None) -> str:
     return hit
 
 
+def _looks_like_vad_failure(exc: Exception) -> bool:
+    """True when the exception is the Silero VAD / onnxruntime model failing
+    to load (e.g. the ``silero_vad_v6.onnx`` asset missing from a packaged
+    build). VAD only improves word timestamps; it must never kill a job."""
+    msg = f"{type(exc).__name__}: {exc}".lower()
+    return (
+        "onnx" in msg
+        or "no_suchfile" in msg
+        or "silero" in msg
+        or "vad" in msg
+    )
+
+
 def _whisper_model_cls():
     """Indirection for the faster-whisper class (lazy import, test-seam)."""
     from faster_whisper import WhisperModel
@@ -101,9 +114,24 @@ def transcribe_audio(
     log.info("transcribing %s with faster-whisper %s (%s)", audio_path, model, dev)
 
     wm = _whisper_model_cls()(model, device=dev, compute_type=compute_type)
-    segments, _info = wm.transcribe(
-        audio_path, language=language, word_timestamps=True, vad_filter=vad_filter
-    )
+    tx_kwargs = dict(language=language, word_timestamps=True, vad_filter=vad_filter)
+    try:
+        segments, _info = wm.transcribe(audio_path, **tx_kwargs)
+    except Exception as exc:
+        # The Silero VAD onnx asset can be missing from a packaged build
+        # (PyInstaller doesn't bundle faster_whisper's data files unless told
+        # to). VAD only refines timestamps — retry without it instead of
+        # failing the whole job.
+        if vad_filter and _looks_like_vad_failure(exc):
+            log.warning(
+                "VAD model unavailable (%s); retrying transcription without VAD",
+                exc,
+            )
+            segments, _info = wm.transcribe(
+                audio_path, language=language, word_timestamps=True, vad_filter=False
+            )
+        else:
+            raise
     words: list[dict] = []
     for seg in segments or []:
         for w in seg.words or []:

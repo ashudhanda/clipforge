@@ -82,6 +82,14 @@ jobs:
           "$FP" -hide_banner -version | head -1
           echo "OK: ffmpeg + ffprobe present and executable in bundle"
 
+      - name: Verify faster_whisper VAD asset bundled (all OS)
+        shell: bash
+        run: |
+          set -e
+          ONNX=$(find dist -name "silero_vad_v6.onnx" | head -1)
+          [ -n "$ONNX" ] || { echo "FATAL: silero_vad_v6.onnx missing from bundle (transcription VAD will crash with ONNXRuntimeError NO_SUCHFILE)"; exit 1; }
+          echo "OK: $ONNX present in bundle"
+
       - name: Inno Setup installer (Windows)
         if: matrix.ffmpeg == 'win'
         shell: powershell

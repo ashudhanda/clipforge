@@ -254,6 +254,57 @@ def test_transcribe_word_output_and_cache(monkeypatch, tmp_path):
     ]
 
 
+class _VadBoomModel(_FakeModel):
+    """Raises an onnx-style error when VAD is on (missing silero asset)."""
+
+    calls = []
+
+    def transcribe(self, path, **k):
+        type(self).calls.append(k.get("vad_filter"))
+        if k.get("vad_filter"):
+            raise RuntimeError(
+                "[ONNXRuntimeError] : 3 : NO_SUCHFILE : "
+                "Load model from C:\\app\\_internal\\faster_whisper\\assets\\silero_vad_v6.onnx"
+            )
+        return super().transcribe(path, **k)
+
+
+def test_transcribe_falls_back_when_vad_asset_missing(monkeypatch, tmp_path):
+    """v0.1.6: missing silero_vad_v6.onnx must not fail the job — VAD is
+    retried off instead of raising."""
+    _VadBoomModel.calls = []
+    monkeypatch.setattr(transcribe, "_whisper_model_cls", lambda: _VadBoomModel)
+    url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+    cache = tmp_path / "c3"
+    audio_dir = cache / "audio"
+    audio_dir.mkdir(parents=True)
+    (audio_dir / "audio_jNQXAC9IVRw.m4a").write_bytes(b"fake-audio-bytes")
+
+    words = transcribe.transcribe_audio(url, cache_dir=str(cache))
+    assert [w["text"] for w in words] == ["hello", "world"]
+    assert _VadBoomModel.calls == [True, False]
+
+
+def test_transcribe_non_vad_errors_still_raise(monkeypatch, tmp_path):
+    """v0.1.6: real transcription errors are not masked by the VAD fallback."""
+
+    class _BoomModel(_FakeModel):
+        def transcribe(self, path, **k):
+            raise RuntimeError("CUDA out of memory")
+
+    monkeypatch.setattr(transcribe, "_whisper_model_cls", lambda: _BoomModel)
+    url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+    cache = tmp_path / "c4"
+    audio_dir = cache / "audio"
+    audio_dir.mkdir(parents=True)
+    (audio_dir / "audio_jNQXAC9IVRw.m4a").write_bytes(b"fake-audio-bytes")
+
+    import pytest
+
+    with pytest.raises(RuntimeError, match="CUDA out of memory"):
+        transcribe.transcribe_audio(url, cache_dir=str(cache))
+
+
 def test_download_audio_cache_hit_skips_ydl(monkeypatch, tmp_path):
     cache = tmp_path / "c2"
     audio_dir = cache / "audio"

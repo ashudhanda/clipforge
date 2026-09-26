@@ -38,6 +38,11 @@ if os.path.isdir(_previews):
 _ICON = os.path.join(ROOT, "packaging", "icon.ico")
 APP_ICON = _ICON if os.path.isfile(_ICON) else None
 
+# --- faster_whisper: the Silero VAD onnx asset (assets/silero_vad_v6.onnx)
+# is a *data* file, so PyInstaller's import analysis misses it even though
+# the package itself is a hiddenimport. Without it every transcription with
+# vad_filter=True dies with [ONNXRuntimeError] NO_SUCHFILE on user machines
+# (v0.1.6). Collected explicitly alongside tzdata below.
 # --- tzdata: zoneinfo loads it via importlib.resources (no direct import),
 # so PyInstaller's import analysis misses its zone files. Windows has no
 # system tz database — without this the frozen app crashes at startup
@@ -45,9 +50,10 @@ APP_ICON = _ICON if os.path.isfile(_ICON) else None
 try:
     from PyInstaller.utils.hooks import collect_data_files
 
+    datas += collect_data_files("faster_whisper")
     datas += collect_data_files("tzdata")
 except Exception:
-    pass  # local dev without PyInstaller/tzdata: zoneinfo falls back to system tzdata
+    pass  # local dev without PyInstaller: assets resolve from site-packages, tzdata falls back to system
 
 # --- bundled binaries (ffmpeg/ffprobe land at the bundle root) --------------
 binaries = []
